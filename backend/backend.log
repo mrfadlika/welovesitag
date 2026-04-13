@@ -1,0 +1,10 @@
+
+[OK] SITAG Backend Server running on port 3000
+[OK] http://localhost:3000
+[OK] API Docs:
+  - POST /api/auth/login - User login
+  - GET  /api/trucks - Get all trucks
+  - POST /api/trucks - Create truck entry
+  - GET  /api/checkouts - Get all checkouts
+  - POST /api/checkouts - Create checkout entry
+
