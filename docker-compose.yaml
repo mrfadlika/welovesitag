@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: sitag-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/data:/app/backend/data
+    environment:
+      - DATABASE_URL=file:./data/dev.db
+      - PORT=3000
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: sitag-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
