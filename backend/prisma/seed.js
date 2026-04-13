@@ -13,7 +13,6 @@ async function seedUsers() {
       role: 'admin',
       email: 'admin@sitag.co.id',
       avatar: null,
-      posName: null,
       pitArea: null,
     },
     {
@@ -23,7 +22,6 @@ async function seedUsers() {
       role: 'staff_pos',
       email: 'budi@sitag.co.id',
       avatar: null,
-      posName: 'Pos Utama A',
       pitArea: null,
     },
     {
@@ -33,7 +31,6 @@ async function seedUsers() {
       role: 'checker',
       email: 'dedi@sitag.co.id',
       avatar: null,
-      posName: null,
       pitArea: 'Pit 3 - Blok B',
     },
   ];
