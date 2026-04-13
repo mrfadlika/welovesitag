@@ -1,39 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
-
-// Dummy users for demo
-const DUMMY_USERS = [
-  {
-    id: 1,
-    username: 'admin',
-    password: 'admin123',
-    name: 'Ahmad Rizki',
-    role: 'admin',
-    avatar: null,
-    email: 'admin@sitag.co.id',
-  },
-  {
-    id: 2,
-    username: 'staffpos',
-    password: 'staff123',
-    name: 'Budi Santoso',
-    role: 'staff_pos',
-    avatar: null,
-    email: 'budi@sitag.co.id',
-    posName: 'Pos Utama A',
-  },
-  {
-    id: 3,
-    username: 'checker',
-    password: 'checker123',
-    name: 'Dedi Kurniawan',
-    role: 'checker',
-    avatar: null,
-    email: 'dedi@sitag.co.id',
-    pitArea: 'Pit 3 - Blok B',
-  },
-];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -41,26 +9,33 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const login = useCallback(async (username, password) => {
     setIsLoading(true);
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    setError(null);
     
-    const found = DUMMY_USERS.find(
-      u => u.username === username && u.password === password
-    );
-    
-    setIsLoading(false);
-    
-    if (found) {
-      const { password: _, ...userData } = found;
-      setUser(userData);
-      localStorage.setItem('sitag_user', JSON.stringify(userData));
-      return { success: true, user: userData };
+    try {
+      const result = await authAPI.login(username, password);
+      
+      if (result.success && result.data) {
+        const userData = result.data;
+        setUser(userData);
+        localStorage.setItem('sitag_user', JSON.stringify(userData));
+        setIsLoading(false);
+        return { success: true, user: userData };
+      } else {
+        const errorMsg = result.message || 'Username atau password salah';
+        setError(errorMsg);
+        setIsLoading(false);
+        return { success: false, error: errorMsg };
+      }
+    } catch (err) {
+      const errMsg = err.message || 'Terjadi kesalahan saat login';
+      setError(errMsg);
+      setIsLoading(false);
+      return { success: false, error: errMsg };
     }
-    
-    return { success: false, error: 'Username atau password salah' };
   }, []);
 
   const logout = useCallback(() => {

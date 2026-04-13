@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { truckAPI, checkoutAPI } from '../../services/api';
 import { TRUCK_TYPES, PIT_OWNERS } from '../../data/dummyData';
 import {
   Truck, Camera, Upload, X, CheckCircle, AlertCircle,
@@ -8,10 +9,15 @@ import {
 } from 'lucide-react';
 import './InputRetasePage.css';
 
-export default function InputRetasePage() {
+export default function InputRetasePage({ mode = null }) {
   const { user } = useAuth();
-  const isChecker = user?.role === 'checker';
+  
+  // Determine role: use mode parameter if provided (admin), otherwise use user role
+  const effectiveRole = mode ? mode : user?.role;
+  const isStaff = effectiveRole === 'staff_pos' || mode === 'staff';
+  const isChecker = effectiveRole === 'checker' || mode === 'checker';
   const isAdmin = user?.role === 'admin';
+  
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
@@ -31,7 +37,6 @@ export default function InputRetasePage() {
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field
     if (errors[field]) {
       setErrors(prev => {
         const next = { ...prev };
@@ -72,7 +77,8 @@ export default function InputRetasePage() {
     if (!formData.truckNumber.trim()) errs.truckNumber = 'No. polisi wajib diisi';
     if (!formData.truckType) errs.truckType = 'Pilih jenis truk';
     
-    if (isChecker || isAdmin) {
+    // Checker and Admin require additional fields
+    if (isChecker || (isAdmin && mode === 'checker')) {
       if (!formData.pitOwner) errs.pitOwner = 'Pilih pemilik pit';
       if (!formData.excaId.trim()) errs.excaId = 'No. identitas excavator wajib diisi';
       if (!formData.excaOperator.trim()) errs.excaOperator = 'Nama operator wajib diisi';
@@ -89,47 +95,93 @@ export default function InputRetasePage() {
     setIsSubmitting(true);
     setSubmitResult(null);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      let result;
 
-    setIsSubmitting(false);
-    setSubmitResult({
-      success: true,
-      id: `RET-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
-      message: 'Data retase berhasil dicatat!',
-    });
+      if (isChecker || mode === 'checker') {
+        // Checker input: Create checkout entry
+        result = await checkoutAPI.create({
+          truckNumber: formData.truckNumber,
+          pitOwner: formData.pitOwner,
+          excaId: formData.excaId,
+          excaOperator: formData.excaOperator,
+          createdBy: user?.id || user?.username,
+        });
+      } else {
+        // Staff POS input: Register truck
+        result = await truckAPI.create({
+          truckNumber: formData.truckNumber,
+          truckType: formData.truckType,
+          createdBy: user?.id || user?.username,
+        });
+      }
 
-    // Reset form
-    setFormData({
-      truckNumber: '',
-      truckType: '',
-      pitOwner: '',
-      excaId: '',
-      excaOperator: '',
-      photo: null,
-    });
-    setPhotoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsSubmitting(false);
 
-    // Auto dismiss after 4s
-    setTimeout(() => setSubmitResult(null), 4000);
+      if (result.success) {
+        setSubmitResult({
+          success: true,
+          id: result.data?.id || `RET-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
+          message: isChecker ? 'Data checkout berhasil dicatat!' : 'Data registrasi masuk berhasil dicatat!',
+        });
+
+        setFormData({
+          truckNumber: '',
+          truckType: '',
+          pitOwner: '',
+          excaId: '',
+          excaOperator: '',
+          photo: null,
+        });
+        setPhotoPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+
+        setTimeout(() => setSubmitResult(null), 4000);
+      } else {
+        setSubmitResult({
+          success: false,
+          message: result.message || 'Gagal menyimpan data',
+        });
+        setTimeout(() => setSubmitResult(null), 4000);
+      }
+    } catch (error) {
+      setIsSubmitting(false);
+      setSubmitResult({
+        success: false,
+        message: 'Terjadi kesalahan: ' + (error.message || 'Network error'),
+      });
+      setTimeout(() => setSubmitResult(null), 4000);
+    }
   };
 
   const getRoleTitle = () => {
-    if (isChecker) return 'Input Retase Checker';
+    if (isChecker && isAdmin) return 'Input Retase (Mode Checker)';
+    if (isStaff && isAdmin) return 'Input Retase (Mode Staff POS)';
+    if (isChecker) return 'Input Checkout Truck';
     if (isAdmin) return 'Input Retase Admin';
-    return 'Input Retase Staff Pos';
+    return 'Registrasi Truck Masuk';
   };
 
   const getRoleDescription = () => {
-    if (isChecker) return 'Catat data retase termasuk informasi pit dan excavator di lokasi.';
-    if (isAdmin) return 'Catat data retase lengkap dengan semua informasi yang diperlukan.';
-    return 'Catat data truk yang melewati pos checkpoint.';
+    if (isChecker && isAdmin) return 'Mode checkout - Catat data excavator yang akan checkout dengan truck ini.';
+    if (isStaff && isAdmin) return 'Mode registrasi - Catat data truck yang masuk di checkpoint.';
+    if (isChecker) return 'Pilih excavator mana yang loading ke truck ini. Data akan di-verify untuk keluar dari pit.';
+    if (isAdmin) return 'Catat data retase lengkap dengan semua informasi untuk admin dashboard.';
+    return 'Catat data truck yang melewati checkpoint POS untuk registrasi masuk.';
   };
+
+  const getModeIndicator = () => {
+    if (isAdmin && mode === 'checker') return { label: 'Mode Checkout', icon: <Pickaxe size={18} /> };
+    if (isAdmin && mode === 'staff') return { label: 'Mode Registrasi', icon: <Truck size={18} /> };
+    if (isChecker) return { label: 'Checkout', icon: <Pickaxe size={18} /> };
+    if (isAdmin) return { label: 'Admin Panel', icon: <Truck size={18} /> };
+    return { label: 'Registrasi Masuk', icon: <Truck size={18} /> };
+  };
+
+  const buttonText = isChecker ? 'Simpan Checkout' : 'Simpan Registrasi';
 
   return (
     <div className="input-retase-page" id="input-retase-page">
-      {/* Success toast */}
       {submitResult?.success && (
         <div className="success-toast" role="alert">
           <div className="toast-icon">
@@ -143,35 +195,32 @@ export default function InputRetasePage() {
         </div>
       )}
 
-      {/* Page Header */}
       <div className="input-page-header">
         <div className="input-header-info">
           <h2>{getRoleTitle()}</h2>
           <p>{getRoleDescription()}</p>
         </div>
         <div className="input-header-badge">
-          <div className={`role-indicator ${user?.role}`}>
-            {isChecker ? <Pickaxe size={18} /> : <Truck size={18} />}
-            <span>{isChecker ? 'Mode Checker' : isAdmin ? 'Mode Admin' : 'Mode Staff Pos'}</span>
+          <div className={`role-indicator ${isChecker ? 'checker' : 'staff'}`}>
+            {getModeIndicator().icon}
+            <span>{getModeIndicator().label}</span>
           </div>
         </div>
       </div>
 
-      {/* Form */}
       <form className="input-form" onSubmit={handleSubmit} id="retase-form">
         <div className="form-sections">
-          {/* Truck Information */}
+          {/* ============ TRUCK INFORMATION SECTION ============ */}
           <div className="form-section">
             <div className="section-label">
               <Truck size={18} />
-              <span>Informasi Truk</span>
+              <span>{isChecker ? 'Informasi Truck yang Akan Checkout' : 'Informasi Truck Masuk'}</span>
             </div>
 
             <div className="form-grid">
-              {/* Truck Number */}
               <div className={`field-group ${errors.truckNumber ? 'error' : ''}`}>
                 <label htmlFor="truck-number">
-                  No. Polisi Truk <span className="required">*</span>
+                  No. Polisi Truck <span className="required">*</span>
                 </label>
                 <div className="field-input-wrap">
                   <Hash size={18} className="field-icon" />
@@ -192,10 +241,9 @@ export default function InputRetasePage() {
                 )}
               </div>
 
-              {/* Truck Type */}
               <div className={`field-group ${errors.truckType ? 'error' : ''}`}>
                 <label htmlFor="truck-type">
-                  Jenis Truk <span className="required">*</span>
+                  Jenis Truck <span className="required">*</span>
                 </label>
                 <div className="truck-type-selector">
                   {TRUCK_TYPES.map((type) => (
@@ -226,19 +274,18 @@ export default function InputRetasePage() {
             </div>
           </div>
 
-          {/* Checker / Admin specific fields */}
-          {(isChecker || isAdmin) && (
+          {/* ============ EXCAVATOR INFORMATION SECTION (Checker & Admin Mode Only) ============ */}
+          {(isChecker || (isAdmin && mode === 'checker')) && (
             <div className="form-section checker-section">
               <div className="section-label">
                 <Pickaxe size={18} />
-                <span>Informasi Pit & Excavator</span>
+                <span>Informasi Excavator & Pit</span>
               </div>
 
               <div className="form-grid">
-                {/* Pit Owner */}
                 <div className={`field-group ${errors.pitOwner ? 'error' : ''}`}>
                   <label htmlFor="pit-owner">
-                    Pemilik Pit <span className="required">*</span>
+                    Pit Owner <span className="required">*</span>
                   </label>
                   <div className="field-input-wrap">
                     <MapPin size={18} className="field-icon" />
@@ -248,7 +295,7 @@ export default function InputRetasePage() {
                       onChange={(e) => handleChange('pitOwner', e.target.value)}
                       className="field-input field-select"
                     >
-                      <option value="">Pilih pemilik pit...</option>
+                      <option value="">Pilih pit owner...</option>
                       {PIT_OWNERS.map((owner) => (
                         <option key={owner.value} value={owner.value}>{owner.label}</option>
                       ))}
@@ -261,10 +308,9 @@ export default function InputRetasePage() {
                   )}
                 </div>
 
-                {/* Excavator ID */}
                 <div className={`field-group ${errors.excaId ? 'error' : ''}`}>
                   <label htmlFor="exca-id">
-                    No. Identitas Excavator <span className="required">*</span>
+                    No. Excavator <span className="required">*</span>
                   </label>
                   <div className="field-input-wrap">
                     <Hash size={18} className="field-icon" />
@@ -285,7 +331,6 @@ export default function InputRetasePage() {
                   )}
                 </div>
 
-                {/* Operator Name */}
                 <div className={`field-group full-width ${errors.excaOperator ? 'error' : ''}`}>
                   <label htmlFor="exca-operator">
                     Nama Operator Excavator <span className="required">*</span>
@@ -312,7 +357,7 @@ export default function InputRetasePage() {
             </div>
           )}
 
-          {/* Photo Section */}
+          {/* ============ PHOTO SECTION ============ */}
           <div className="form-section">
             <div className="section-label">
               <Camera size={18} />
@@ -379,7 +424,7 @@ export default function InputRetasePage() {
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ============ FORM ACTIONS ============ */}
         <div className="form-actions">
           <button
             type="button"
@@ -406,7 +451,7 @@ export default function InputRetasePage() {
             ) : (
               <>
                 <Upload size={18} />
-                Simpan Retase
+                {buttonText}
               </>
             )}
           </button>

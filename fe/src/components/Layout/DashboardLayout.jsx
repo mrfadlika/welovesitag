@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  Mountain, LayoutDashboard, ClipboardPlus, History,
+  Mountain, LayoutDashboard, ClipboardPlus, History, CheckCircle2,
   LogOut, Menu, X, ChevronLeft, User, ShieldCheck,
   Truck, HardHat,
 } from 'lucide-react';
@@ -62,20 +62,31 @@ export default function DashboardLayout({ children }) {
   };
 
   const getNavItems = () => {
-    const base = '/dashboard';
-    const items = [
-      { to: base, icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
-      { to: `${base}/input`, icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
-      { to: `${base}/riwayat`, icon: <History size={20} />, label: 'Riwayat' },
-    ];
-
     if (user?.role === 'admin') {
-      items[0].to = '/admin';
-      items[1].to = '/admin/input';
-      items[2].to = '/admin/riwayat';
+      return [
+        { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
+        { to: '/admin/input-staff', icon: <ClipboardPlus size={20} />, label: 'Input Staff POS' },
+        { to: '/admin/input-checker', icon: <ClipboardPlus size={20} />, label: 'Input Checker' },
+        { to: '/admin/verifikasi', icon: <CheckCircle2 size={20} />, label: 'Verifikasi Keluar' },
+        { to: '/admin/riwayat', icon: <History size={20} />, label: 'Riwayat' },
+      ];
     }
-
-    return items;
+    
+    if (user?.role === 'checker') {
+      return [
+        { to: '/checker', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
+        { to: '/checker/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
+        { to: '/checker/riwayat', icon: <History size={20} />, label: 'Riwayat' },
+      ];
+    }
+    
+    // Staff POS
+    return [
+      { to: '/staff', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
+      { to: '/staff/input', icon: <ClipboardPlus size={20} />, label: 'Registrasi Masuk' },
+      { to: '/staff/verifikasi', icon: <CheckCircle2 size={20} />, label: 'Verifikasi Keluar' },
+      { to: '/staff/riwayat', icon: <History size={20} />, label: 'Riwayat' },
+    ];
   };
 
   const navItems = getNavItems();
@@ -83,7 +94,12 @@ export default function DashboardLayout({ children }) {
   // Get page title from current path
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.includes('/input')) return 'Input Retase';
+    if (path.includes('/input')) {
+      if (path.includes('input-staff')) return 'Input Retase (Mode Staff)';
+      if (path.includes('input-checker')) return 'Input Retase (Mode Checker)';
+      return 'Input Retase';
+    }
+    if (path.includes('/verifikasi')) return 'Verifikasi Keluar';
     if (path.includes('/riwayat')) return 'Riwayat Retase';
     return 'Dashboard';
   };
@@ -98,7 +114,11 @@ export default function DashboardLayout({ children }) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} id="sidebar">
         <div className="sidebar-header">
-          <NavLink to={user?.role === 'admin' ? '/admin' : '/dashboard'} className="sidebar-brand">
+          <NavLink to={
+            user?.role === 'admin' ? '/admin' : 
+            user?.role === 'checker' ? '/checker' : 
+            '/staff'
+          } className="sidebar-brand">
             <div className="sidebar-brand-icon">
               <Mountain size={22} strokeWidth={2} />
             </div>

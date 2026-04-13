@@ -4,6 +4,7 @@ import LoginPage from './pages/Login/LoginPage';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import InputRetasePage from './pages/InputRetase/InputRetasePage';
+import ExitVerificationPage from './pages/ExitVerification/ExitVerificationPage';
 import RiwayatPage from './pages/Riwayat/RiwayatPage';
 
 // Protected Route wrapper
@@ -15,7 +16,9 @@ function ProtectedRoute({ children, allowedRoles }) {
   }
   
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+    const redirectPath = user.role === 'admin' ? '/admin' : 
+                         user.role === 'checker' ? '/checker' : '/staff';
+    return <Navigate to={redirectPath} replace />;
   }
   
   return children;
@@ -27,7 +30,8 @@ function RoleRedirect() {
   
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === 'admin') return <Navigate to="/admin" replace />;
-  return <Navigate to="/dashboard" replace />;
+  if (user.role === 'checker') return <Navigate to="/checker" replace />;
+  return <Navigate to="/staff" replace />;
 }
 
 function AppRoutes() {
@@ -35,32 +39,64 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       
-      {/* Staff & Checker routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute allowedRoles={['staff_pos', 'checker']}>
+      {/* ============ STAFF POS ROUTES ============ */}
+      <Route path="/staff" element={
+        <ProtectedRoute allowedRoles={['staff_pos']}>
           <DashboardLayout><DashboardPage /></DashboardLayout>
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/input" element={
-        <ProtectedRoute allowedRoles={['staff_pos', 'checker']}>
+      <Route path="/staff/input" element={
+        <ProtectedRoute allowedRoles={['staff_pos']}>
           <DashboardLayout><InputRetasePage /></DashboardLayout>
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/riwayat" element={
-        <ProtectedRoute allowedRoles={['staff_pos', 'checker']}>
+      <Route path="/staff/verifikasi" element={
+        <ProtectedRoute allowedRoles={['staff_pos']}>
+          <DashboardLayout><ExitVerificationPage /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/staff/riwayat" element={
+        <ProtectedRoute allowedRoles={['staff_pos']}>
           <DashboardLayout><RiwayatPage /></DashboardLayout>
         </ProtectedRoute>
       } />
 
-      {/* Admin routes */}
+      {/* ============ CHECKER ROUTES ============ */}
+      <Route path="/checker" element={
+        <ProtectedRoute allowedRoles={['checker']}>
+          <DashboardLayout><DashboardPage /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/checker/input" element={
+        <ProtectedRoute allowedRoles={['checker']}>
+          <DashboardLayout><InputRetasePage /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/checker/riwayat" element={
+        <ProtectedRoute allowedRoles={['checker']}>
+          <DashboardLayout><RiwayatPage /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* ============ ADMIN ROUTES ============ */}
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <DashboardLayout><DashboardPage /></DashboardLayout>
         </ProtectedRoute>
       } />
-      <Route path="/admin/input" element={
+      <Route path="/admin/input-staff" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <DashboardLayout><InputRetasePage /></DashboardLayout>
+          <DashboardLayout><InputRetasePage mode="staff" /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/input-checker" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <DashboardLayout><InputRetasePage mode="checker" /></DashboardLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/verifikasi" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <DashboardLayout><ExitVerificationPage /></DashboardLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/riwayat" element={
