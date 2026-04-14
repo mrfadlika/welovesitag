@@ -9,6 +9,10 @@ import {
   Truck,
   HardHat,
   ChevronRight,
+  ShieldCheck,
+  Activity,
+  User,
+  Lock,
 } from 'lucide-react';
 import './LoginPage.css';
 
@@ -66,6 +70,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState(null);
   const { login, isLoading, user } = useAuth();
@@ -125,12 +130,23 @@ export default function LoginPage() {
       animationId = requestAnimationFrame(animate);
     };
 
+    const handleMouseMove = (e) => {
+      const { clientX, clientY } = e;
+      const xBasis = (clientX / window.innerWidth - 0.5) * 40;
+      const yBasis = (clientY / window.innerHeight - 0.5) * 40;
+      
+      document.documentElement.style.setProperty('--mouse-x', `${xBasis}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${yBasis}px`);
+    };
+
     animate();
     window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', handleMouseMove);
 
     return () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
 
@@ -143,7 +159,7 @@ export default function LoginPage() {
       return;
     }
 
-    const result = await login(username, password);
+    const result = await login(username, password, rememberMe);
     if (!result.success) {
       setError(result.error);
     }
@@ -157,62 +173,80 @@ export default function LoginPage() {
         <div className="ambient-orb orb-1" />
         <div className="ambient-orb orb-2" />
         <div className="ambient-orb orb-3" />
+        <div className="ambient-orb orb-4" />
       </div>
 
       <div className="login-container">
         <div className="login-branding">
           <div className="branding-content">
-            <div className="brand-icon-wrapper">
-              <div className="brand-icon-glow" />
-              <div className="brand-icon">
-                <Mountain size={40} strokeWidth={1.5} />
+            <div className="brand-badge-wrapper fade-in-up" style={{ animationDelay: '0.1s' }}>
+              <div className="brand-badge">
+                <Activity size={12} className="pulse-icon" />
+                <span>Sistem Aktif & Terenkripsi</span>
               </div>
             </div>
 
-            <h1 className="brand-title">
+            <div className="brand-icon-wrapper fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <div className="brand-icon-glow" />
+              <div className="brand-icon-inner-glow" />
+              <div className="brand-icon">
+                <Mountain size={48} strokeWidth={1.2} />
+              </div>
+            </div>
+
+            <h1 className="brand-title fade-in-up" style={{ animationDelay: '0.3s' }}>
               <span className="brand-si">SI</span>
               <span className="brand-tag">TAG</span>
             </h1>
-            <p className="brand-subtitle">Sistem Informasi Tambang</p>
-            <p className="brand-description">
-              Platform pencatatan retase digital untuk monitoring operasional tambang yang efisien dan akurat.
+            <p className="brand-subtitle fade-in-up" style={{ animationDelay: '0.4s' }}>Informasi Tambang Digital</p>
+            <p className="brand-description fade-in-up" style={{ animationDelay: '0.5s' }}>
+              Sistem manajemen operasional tambang terpadu untuk efisiensi maksimal dalam pemantauan retase dan logistik.
             </p>
 
-            <div className="brand-features">
+            <div className="brand-features fade-in-up" style={{ animationDelay: '0.6s' }}>
               <div className="brand-feature">
                 <div className="feature-icon">
                   <Truck size={20} />
                 </div>
-                <div>
-                  <h4>Pencatatan Retase</h4>
-                  <p>Real-time tracking truk & muatan</p>
+                <div className="feature-info">
+                  <h4>Monitoring Armada</h4>
+                  <p>Lacak pergerakan real-time secara akurat</p>
                 </div>
               </div>
               <div className="brand-feature">
                 <div className="feature-icon">
-                  <HardHat size={20} />
+                  <ShieldCheck size={20} />
                 </div>
-                <div>
-                  <h4>Multi Role</h4>
-                  <p>Staff Pos & Checker terintegrasi</p>
+                <div className="feature-info">
+                  <h4>Sistem Terintegrasi</h4>
+                  <p>Keamanan data tingkat perusahaan</p>
                 </div>
               </div>
+            </div>
+
+            <div className="branding-footer fade-in-up" style={{ animationDelay: '0.7s' }}>
+              <div className="footer-status">
+                <span className="status-dot green" />
+                <span>Semua sistem normal</span>
+              </div>
+              <div className="footer-version">v2.5.0</div>
             </div>
           </div>
 
           <div className="branding-grid" />
+          <div className="branding-scanner" />
         </div>
 
         <div className="login-form-panel">
-          <div className="login-form-wrapper">
+          <div className="login-form-wrapper fade-in" style={{ animationDelay: '0.4s' }}>
             <div className="login-form-header">
               <div className="mobile-brand">
-                <Mountain size={28} strokeWidth={1.5} />
+                <Mountain size={32} strokeWidth={1.5} />
                 <span className="brand-si">SI</span>
                 <span className="brand-tag">TAG</span>
               </div>
-              <h2>Selamat Datang</h2>
-              <p>Masuk ke akun Anda untuk melanjutkan</p>
+              <h2>Selamat Datang Kembali</h2>
+              <p>Autentikasi diperlukan untuk melanjutkan akses dashboard</p>
             </div>
 
             <form className="login-form" onSubmit={handleSubmit} id="login-form">
@@ -223,18 +257,7 @@ export default function LoginPage() {
               >
                 <label htmlFor="login-username">Username</label>
                 <div className="input-wrapper">
-                  <svg
-                    className="input-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                  <User size={18} className="input-icon" />
                   <input
                     id="login-username"
                     type="text"
@@ -242,9 +265,10 @@ export default function LoginPage() {
                     onChange={(event) => setUsername(event.target.value)}
                     onFocus={() => setFocusedField('username')}
                     onBlur={() => setFocusedField(null)}
-                    placeholder="Masukkan username"
+                    placeholder="Masukkan username Anda"
                     autoComplete="username"
                   />
+                  <div className="input-focus-border" />
                 </div>
               </div>
 
@@ -255,18 +279,7 @@ export default function LoginPage() {
               >
                 <label htmlFor="login-password">Password</label>
                 <div className="input-wrapper">
-                  <svg
-                    className="input-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
+                  <Lock size={18} className="input-icon" />
                   <input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
@@ -274,7 +287,7 @@ export default function LoginPage() {
                     onChange={(event) => setPassword(event.target.value)}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
-                    placeholder="Masukkan password"
+                    placeholder="Masukkan password Anda"
                     autoComplete="current-password"
                   />
                   <button
@@ -286,7 +299,20 @@ export default function LoginPage() {
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
+                  <div className="input-focus-border" />
                 </div>
+              </div>
+
+              <div className="form-options">
+                <label className="checkbox-container">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span className="checkmark" />
+                  <span className="checkbox-label">Ingat saya</span>
+                </label>
               </div>
 
               {error && (
@@ -316,14 +342,15 @@ export default function LoginPage() {
                 {isLoading ? (
                   <>
                     <Loader2 size={20} className="spin" />
-                    <span>Memproses...</span>
+                    <span>Mengautentikasi...</span>
                   </>
                 ) : (
                   <>
-                    <span>Masuk</span>
-                    <ChevronRight size={20} />
+                    <span>Masuk ke Dashboard</span>
+                    <ChevronRight size={18} className="btn-icon" />
                   </>
                 )}
+                <div className="btn-shimmer" />
               </button>
             </form>
 
