@@ -15,8 +15,8 @@
   justify-content: space-between;
   gap: var(--space-lg);
   padding: var(--space-xl) var(--space-2xl);
-  background: linear-gradient(135deg, #161d26 0%, #1a2336 100%);
-  border: 1px solid rgba(251, 179, 36, 0.15);
+  background: var(--gradient-card);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   position: relative;
@@ -61,7 +61,7 @@
   min-width: 8rem;
   padding: 1rem 1.3rem;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-page-alt);
   border: 1px solid rgba(251, 179, 36, 0.2);
   flex-shrink: 0;
 }
@@ -188,7 +188,7 @@
   padding: 0.1rem 0.35rem;
   border-radius: 999px;
   background: var(--gradient-primary);
-  color: #0d1117;
+  color: var(--color-bg-page);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -248,7 +248,7 @@
 }
 
 .riwayat-page .chip {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-page-alt);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
 }
@@ -262,7 +262,7 @@
 .riwayat-page .chip.active {
   background: var(--gradient-primary);
   border-color: transparent;
-  color: #0d1117;
+  color: var(--color-bg-page);
 }
 
 .riwayat-page .clear-filters {
@@ -291,7 +291,7 @@
 }
 
 .riwayat-table thead {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-bg-page-alt);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -308,7 +308,7 @@
 
 .riwayat-table td {
   padding: 1rem 1.1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   vertical-align: middle;
   font-size: 0.9rem;
@@ -319,7 +319,7 @@
 }
 
 .riwayat-table tbody tr:hover {
-  background: rgba(251, 179, 36, 0.04);
+  background: var(--color-accent-primary-soft);
 }
 
 /* ========== TABLE CELLS ========== */
@@ -426,7 +426,7 @@
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-page-alt);
   border: 1px solid var(--color-border);
   color: var(--color-text-tertiary);
   cursor: pointer;
@@ -534,7 +534,7 @@
   justify-content: space-between;
   padding: var(--space-lg) var(--space-xl);
   border-bottom: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-bg-page-alt);
 }
 
 .riwayat-page .modal-header h3 {
@@ -580,7 +580,7 @@
   gap: 0.3rem;
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-bg-page-alt);
   border: 1px solid var(--color-border);
 }
 

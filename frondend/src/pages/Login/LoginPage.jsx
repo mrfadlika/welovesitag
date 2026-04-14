@@ -66,6 +66,8 @@ function getHomePath(role) {
   return '/staff';
 }
 
+import ThemeToggle from '../../components/ThemeToggle/ThemeToggle';
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -167,6 +169,9 @@ export default function LoginPage() {
 
   return (
     <div className="login-page" id="login-page">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
       <canvas ref={canvasRef} className="login-particles" />
 
       <div className="login-ambient">

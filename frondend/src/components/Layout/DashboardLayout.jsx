@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import './DashboardLayout.css';
 import logo from '../../assets/logo.png';
+import ThemeToggle from '../ThemeToggle/ThemeToggle';
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -317,6 +318,8 @@ export default function DashboardLayout({ children }) {
           </div>
 
           <div className="header-right">
+            <ThemeToggle />
+            
             <div className="header-clock desktop-only">
               <span className="header-clock-time">{clockTime}</span>
               <span className="header-clock-label">Waktu</span>
