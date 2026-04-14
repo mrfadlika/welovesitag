@@ -7,6 +7,7 @@ import {
   Loader2,
   Save,
   Wallet,
+  FileDown,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { checkoutAPI, settingsAPI } from '../../services/api';
@@ -139,6 +140,84 @@ export default function RekapPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    // Creating manual HTML table for Excel compatibility
+    const header = [
+      'Hari',
+      'Tanggal',
+      'Checker Pit',
+      'Checker Gate',
+      'Retase Fuso',
+      'Retase Dyna',
+      'Harga Fuso',
+      'Harga Dyna',
+      'Harga',
+      'Cumulative Harga',
+    ];
+
+    const totals = {
+      fusoCount: rows.reduce((sum, r) => sum + r.fusoCount, 0),
+      dynaCount: rows.reduce((sum, r) => sum + r.dynaCount, 0),
+      fusoPrice: rows.reduce((sum, r) => sum + r.fusoPrice, 0),
+      dynaPrice: rows.reduce((sum, r) => sum + r.dynaPrice, 0),
+      totalPrice: rows.reduce((sum, r) => sum + r.totalPrice, 0),
+    };
+
+    let tableHtml = `
+      <table border="1">
+        <thead>
+          <tr style="background-color: #fbb324; color: #000; font-weight: bold;">
+            ${header.map((h) => `<th>${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+            <tr>
+              <td>${row.day}</td>
+              <td>${new Date(row.date).toLocaleDateString('id-ID')}</td>
+              <td>${row.checkerPit}</td>
+              <td>${row.checkerGate}</td>
+              <td>${row.fusoCount}</td>
+              <td>${row.dynaCount}</td>
+              <td>${formatCurrency(row.fusoPrice)}</td>
+              <td>${formatCurrency(row.dynaPrice)}</td>
+              <td>${formatCurrency(row.totalPrice)}</td>
+              <td>${formatCurrency(row.cumulativePrice)}</td>
+            </tr>
+          `
+            )
+            .join('')}
+          <tr style="background-color: #f3f4f6; font-weight: bold;">
+            <td colspan="4" style="text-align: right;">TOTAL:</td>
+            <td>${totals.fusoCount}</td>
+            <td>${totals.dynaCount}</td>
+            <td>${formatCurrency(totals.fusoPrice)}</td>
+            <td>${formatCurrency(totals.dynaPrice)}</td>
+            <td>${formatCurrency(totals.totalPrice)}</td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const template = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rekap Retase</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+        <body>${tableHtml}</body>
+      </html>
+    `;
+
+    const blob = new Blob([template], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Rekap_Retase_${new Date().toISOString().split('T')[0]}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="rekap-page">
       <section className="rekap-hero surface-card surface-card--accent">
@@ -149,6 +228,16 @@ export default function RekapPage() {
             Tabel ini mengikuti workbook: Hari, Tanggal, Checker Pit, Checker Gate,
             Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.
           </p>
+          {isAdmin && (
+            <button
+              className="rekap-export-btn"
+              onClick={handleExportExcel}
+              title="Unduh Laporan ke Excel"
+            >
+              <FileDown size={18} />
+              <span>Ekspor ke Excel</span>
+            </button>
+          )}
         </div>
         <div className="rekap-hero-badge">
           <strong>{rows.length}</strong>

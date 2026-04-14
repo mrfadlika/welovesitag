@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Mountain,
   Truck,
   HardHat,
   ChevronRight,
@@ -15,6 +14,7 @@ import {
   Lock,
 } from 'lucide-react';
 import './LoginPage.css';
+import logo from '../../assets/logo.png';
 
 class Particle {
   constructor(canvas, context) {
@@ -186,18 +186,18 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="brand-icon-wrapper fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <div className="brand-icon-glow" />
-              <div className="brand-icon-inner-glow" />
-              <div className="brand-icon">
-                <Mountain size={48} strokeWidth={1.2} />
+            <div className="brand-header-horizontal fade-in-up">
+              <div className="brand-icon-wrapper">
+                <div className="brand-icon">
+                  <img src={logo} alt="SITAG Logo" className="brand-logo-img" />
+                </div>
               </div>
-            </div>
 
-            <h1 className="brand-title fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <span className="brand-si">SI</span>
-              <span className="brand-tag">TAG</span>
-            </h1>
+              <h1 className="brand-title">
+                <span className="brand-si">SI</span>
+                <span className="brand-tag">TAG</span>
+              </h1>
+            </div>
             <p className="brand-subtitle fade-in-up" style={{ animationDelay: '0.4s' }}>Informasi Tambang Digital</p>
             <p className="brand-description fade-in-up" style={{ animationDelay: '0.5s' }}>
               Sistem manajemen operasional tambang terpadu untuk efisiensi maksimal dalam pemantauan retase dan logistik.
@@ -229,7 +229,7 @@ export default function LoginPage() {
                 <span className="status-dot green" />
                 <span>Semua sistem normal</span>
               </div>
-              <div className="footer-version">v2.5.0</div>
+              <div className="footer-version">v1.1.0</div>
             </div>
           </div>
 
@@ -241,7 +241,7 @@ export default function LoginPage() {
           <div className="login-form-wrapper fade-in" style={{ animationDelay: '0.4s' }}>
             <div className="login-form-header">
               <div className="mobile-brand">
-                <Mountain size={32} strokeWidth={1.5} />
+                <img src={logo} alt="SITAG Logo" className="mobile-logo-img" />
                 <span className="brand-si">SI</span>
                 <span className="brand-tag">TAG</span>
               </div>

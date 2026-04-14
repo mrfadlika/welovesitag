@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
 import {
-  Mountain,
   LayoutDashboard,
   ClipboardPlus,
   History,
@@ -18,6 +17,7 @@ import {
   Users,
 } from 'lucide-react';
 import './DashboardLayout.css';
+import logo from '../../assets/logo.png';
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -215,7 +215,7 @@ export default function DashboardLayout({ children }) {
         <div className="sidebar-header">
           <NavLink to={homePath} className="sidebar-brand" onClick={closeSidebar}>
             <div className="sidebar-brand-icon">
-              <Mountain size={22} strokeWidth={2} />
+              <img src={logo} alt="Logo" className="sidebar-logo-img" />
             </div>
             {!sidebarCollapsed && (
               <span className="sidebar-brand-text">
