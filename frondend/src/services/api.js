@@ -96,6 +96,21 @@ export const checkoutAPI = {
     });
     return handleResponse(response);
   },
+
+  // Get rekap retase summary
+  getRekap: async (filters = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        params.append(key, value);
+      }
+    });
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/checkouts/rekap${query}`);
+    return handleResponse(response);
+  },
 };
 
 // ============ USER ENDPOINTS (Admin only) ============
@@ -120,6 +135,23 @@ export const userAPI = {
   remove: async (id) => {
     const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+};
+
+// ============ SETTINGS ENDPOINTS ============ 
+export const settingsAPI = {
+  getRates: async () => {
+    const response = await fetch(`${API_BASE_URL}/settings/rates`);
+    return handleResponse(response);
+  },
+
+  updateRates: async (rates) => {
+    const response = await fetch(`${API_BASE_URL}/settings/rates`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rates),
     });
     return handleResponse(response);
   },
@@ -160,4 +192,5 @@ export default {
   truckAPI,
   checkoutAPI,
   userAPI,
+  settingsAPI,
 };

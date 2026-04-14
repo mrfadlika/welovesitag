@@ -15,6 +15,7 @@ model User {
   role      String
   email     String   @unique
   avatar    String?
+  posName   String?
   pitArea   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -49,9 +50,11 @@ model Checkout {
   truckNumber    String
   truckType      String
   truckTypeLabel String
+  materialType   String?
   pitOwner       String
   excaId         String
   excaOperator   String
+  contractor     String?
   createdBy      String
   createdByRole  String
   createdAt      DateTime @default(now())
@@ -65,4 +68,20 @@ model Checkout {
   @@index([truckId])
   @@index([truckCode])
   @@index([status])
+  @@index([materialType])
+  @@index([contractor])
+}
+
+model ManualMigration {
+  name      String   @id
+  appliedAt DateTime @default(now())
+
+  @@map("_manual_migrations")
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

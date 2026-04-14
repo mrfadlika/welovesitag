@@ -42,6 +42,10 @@
   letter-spacing: -0.4px;
 }
 
+.verify-hero > div:first-child {
+  min-width: 0;
+}
+
 .verify-hero p {
   max-width: 44rem;
   margin: 0.6rem 0 0;
@@ -208,6 +212,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
 }
 
 .truck-icon-wrapper {
@@ -232,10 +237,15 @@
   letter-spacing: 0.02em;
 }
 
+.truck-details {
+  min-width: 0;
+}
+
 .truck-details p {
   margin: 0.3rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .truck-badge {
@@ -337,6 +347,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
+  width: 100%;
   min-height: 3.5rem;
   padding: 0.9rem 1rem;
   border-radius: var(--radius-md);

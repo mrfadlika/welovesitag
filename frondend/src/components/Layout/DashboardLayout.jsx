@@ -112,18 +112,14 @@ export default function DashboardLayout({ children }) {
     if (user?.role === 'admin') {
       return [
         { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
-        { to: '/admin/input-staff', icon: <ClipboardPlus size={20} />, label: 'Input Staff POS' },
-        {
-          to: '/admin/input-checker',
-          icon: <ClipboardPlus size={20} />,
-          label: 'Input Checker',
-        },
+        { to: '/admin/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
         {
           to: '/admin/verifikasi',
           icon: <CheckCircle2 size={20} />,
           label: 'Verifikasi Keluar',
         },
         { to: '/admin/riwayat', icon: <History size={20} />, label: 'Riwayat Retase' },
+        { to: '/admin/rekap', icon: <History size={20} />, label: 'Rekap Retase' },
         { to: '/admin/pengguna', icon: <Users size={20} />, label: 'Kelola Pengguna' },
       ];
     }
@@ -133,14 +129,15 @@ export default function DashboardLayout({ children }) {
         { to: '/checker', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
         { to: '/checker/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
         { to: '/checker/riwayat', icon: <History size={20} />, label: 'Riwayat Retase' },
+        { to: '/checker/rekap', icon: <History size={20} />, label: 'Rekap Retase' },
       ];
     }
 
     return [
       { to: '/staff', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
-      { to: '/staff/input', icon: <ClipboardPlus size={20} />, label: 'Registrasi Masuk' },
       { to: '/staff/verifikasi', icon: <CheckCircle2 size={20} />, label: 'Verifikasi Keluar' },
       { to: '/staff/riwayat', icon: <History size={20} />, label: 'Riwayat Retase' },
+      { to: '/staff/rekap', icon: <History size={20} />, label: 'Rekap Retase' },
     ];
   };
 
@@ -154,23 +151,19 @@ export default function DashboardLayout({ children }) {
     }
 
     if (path.includes('/input')) {
-      if (path.includes('input-staff')) {
-        return 'Input Retase Staff';
-      }
-
-      if (path.includes('input-checker')) {
-        return 'Input Retase Checker';
-      }
-
-      return 'Input Retase';
+      return 'Input Data Retase';
     }
 
     if (path.includes('/verifikasi')) {
-      return 'Verifikasi Keluar';
+      return 'Verifikasi Gate';
     }
 
     if (path.includes('/riwayat')) {
-      return 'Riwayat Retase';
+      return 'Data Log Retase';
+    }
+
+    if (path.includes('/rekap')) {
+      return 'Rekap Retase';
     }
 
     return 'Dashboard Operasional';
@@ -184,15 +177,19 @@ export default function DashboardLayout({ children }) {
     }
 
     if (path.includes('/input')) {
-      return 'Form dibuat lebih sederhana agar input nomor polisi dan data pit lebih cepat dibaca.';
+      return 'Form utama diselaraskan dengan workbook Excel agar log dan rekap memakai struktur yang sama.';
     }
 
     if (path.includes('/verifikasi')) {
-      return 'Periksa detail truck lalu setujui atau tolak keluar dari area tambang.';
+      return 'Periksa data workbook lalu isi checker gate dengan menyetujui atau menolak antrean.';
     }
 
     if (path.includes('/riwayat')) {
-      return 'Cari data lama, lihat status, dan buka detail retase kapan saja.';
+      return 'Lihat log real-time dengan kolom yang mengikuti sheet Excel.';
+    }
+
+    if (path.includes('/rekap')) {
+      return 'Pantau rekap harian Fuso, Dyna, harga, dan cumulative harga dari data verified.';
     }
 
     return 'Pantau ringkasan aktivitas retase harian dari satu tampilan yang mudah dibaca.';

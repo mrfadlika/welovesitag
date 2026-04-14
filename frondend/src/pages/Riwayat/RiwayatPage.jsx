@@ -1,29 +1,47 @@
 import { useEffect, useMemo, useState } from 'react';
-import { truckAPI, checkoutAPI } from '../../services/api';
-import { TRUCK_TYPES } from '../../data/dummyData';
-import { buildRetaseHistory } from '../../utils/retase';
 import {
-  Search,
-  Filter,
-  CheckCircle2,
-  Clock,
-  Truck,
-  Calendar,
-  ChevronDown,
-  Eye,
-  X,
   AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Eye,
+  Filter,
   Loader2,
+  Search,
+  X,
 } from 'lucide-react';
+import { checkoutAPI } from '../../services/api';
+import { LOG_STATUS_OPTIONS, TRUCK_TYPE_OPTIONS } from '../../data/retaseOptions';
+import { buildRetaseHistory } from '../../utils/retase';
 import './RiwayatPage.css';
 
+function StatusBadge({ status }) {
+  if (status === 'verified') {
+    return (
+      <span className="status-badge verified">
+        <CheckCircle2 size={12} /> Verified
+      </span>
+    );
+  }
+
+  if (status === 'rejected') {
+    return <span className="status-badge rejected">Ditolak</span>;
+  }
+
+  return (
+    <span className="status-badge pending">
+      <Clock size={12} /> Menunggu Gate
+    </span>
+  );
+}
+
 export default function RiwayatPage() {
+  const [records, setRecords] = useState([]);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [records, setRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,17 +51,14 @@ export default function RiwayatPage() {
       setError(null);
 
       try {
-        const [truckResult, checkoutResult] = await Promise.all([
-          truckAPI.getAll(),
-          checkoutAPI.getAll(),
-        ]);
+        const result = await checkoutAPI.getAll();
 
-        if (!truckResult.success || !checkoutResult.success) {
-          setError(truckResult.message || checkoutResult.message || 'Gagal memuat riwayat');
+        if (!result.success) {
+          setError(result.message || 'Gagal memuat data log retase');
           return;
         }
 
-        setRecords(buildRetaseHistory(truckResult.data || [], checkoutResult.data || []));
+        setRecords(buildRetaseHistory(result.data || []));
       } catch (fetchError) {
         setError(`Gagal memuat data: ${fetchError.message}`);
       } finally {
@@ -55,65 +70,51 @@ export default function RiwayatPage() {
   }, []);
 
   const filteredData = useMemo(() => {
+    const keyword = searchQuery.toLowerCase();
+
     return records.filter((item) => {
-      const keyword = searchQuery.toLowerCase();
       const matchSearch =
         !keyword ||
-        item.truckNumber.toLowerCase().includes(keyword) ||
         item.id.toLowerCase().includes(keyword) ||
-        item.inputBy.toLowerCase().includes(keyword) ||
-        item.excaOperator?.toLowerCase().includes(keyword);
+        item.truckNumber.toLowerCase().includes(keyword) ||
+        item.materialType.toLowerCase().includes(keyword) ||
+        item.locationOwner.toLowerCase().includes(keyword) ||
+        item.heavyEquipment.toLowerCase().includes(keyword) ||
+        item.contractor.toLowerCase().includes(keyword) ||
+        item.checkerPit.toLowerCase().includes(keyword) ||
+        item.checkerGate.toLowerCase().includes(keyword);
 
       const matchType = filterType === 'all' || item.truckType === filterType;
       const matchStatus = filterStatus === 'all' || item.status === filterStatus;
 
       return matchSearch && matchType && matchStatus;
     });
-  }, [records, searchQuery, filterType, filterStatus]);
+  }, [filterStatus, filterType, records, searchQuery]);
 
-  const historyStats = useMemo(() => {
+  const summary = useMemo(() => {
     const verified = filteredData.filter((item) => item.status === 'verified').length;
-    const pending = filteredData.filter((item) => item.status === 'pending').length;
-    const uniqueTrucks = new Set(filteredData.map((item) => item.truckNumber)).size;
+    const pending = filteredData.filter((item) => item.status === 'ready_for_exit').length;
+    const rejected = filteredData.filter((item) => item.status === 'rejected').length;
 
     return [
-      {
-        label: 'Data Ditampilkan',
-        value: filteredData.length,
-        note: 'Setelah pencarian dan filter',
-      },
-      {
-        label: 'Sudah Verified',
-        value: verified,
-        note: 'Retase yang sudah selesai',
-      },
-      {
-        label: 'Masih Pending',
-        value: pending,
-        note: 'Perlu dicek di antrian verifikasi',
-      },
-      {
-        label: 'Truck Unik',
-        value: uniqueTrucks,
-        note: 'Nomor polisi berbeda yang terlihat',
-      },
+      { label: 'Data Tampil', value: filteredData.length, note: 'Hasil pencarian dan filter' },
+      { label: 'Verified', value: verified, note: 'Sudah masuk checker gate' },
+      { label: 'Menunggu Gate', value: pending, note: 'Belum diverifikasi gate' },
+      { label: 'Ditolak', value: rejected, note: 'Perlu input ulang atau koreksi' },
     ];
   }, [filteredData]);
-
-  const activeFilters =
-    (filterType !== 'all' ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0);
 
   return (
     <div className="riwayat-page" id="riwayat-page">
       <section className="riwayat-hero surface-card surface-card--accent">
         <div>
-          <span className="section-kicker">Pusat Riwayat</span>
-          <h2>Riwayat Retase</h2>
-          <p>Cari nomor polisi, cek status, lalu buka detail retase tanpa perlu membaca seluruh tabel.</p>
+          <span className="section-kicker">Log Real-Time</span>
+          <h2>Data Log Retase</h2>
+          <p>Kolom utama disusun mengikuti workbook Excel: No Reg, Tanggal, Waktu, Material, Lokasi, Alat Berat, Checker Pit, Jenis Truk, No Polisi, Kontraktor, dan Checker Gate.</p>
         </div>
         <div className="riwayat-hero-badge">
           <strong>{filteredData.length}</strong>
-          <span>Data tampil</span>
+          <span>Baris log</span>
         </div>
       </section>
 
@@ -122,11 +123,10 @@ export default function RiwayatPage() {
           <Search size={18} className="search-icon" />
           <input
             type="text"
-            placeholder="Cari no. polisi, ID, nama operator, atau petugas..."
+            placeholder="Cari no reg, no polisi, material, lokasi, kontraktor, atau checker..."
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="search-input"
-            id="search-retase"
           />
           {searchQuery && (
             <button className="search-clear" onClick={() => setSearchQuery('')}>
@@ -135,41 +135,21 @@ export default function RiwayatPage() {
           )}
         </div>
 
-        <button
-          className={`filter-toggle ${showFilters ? 'active' : ''}`}
-          onClick={() => setShowFilters(!showFilters)}
-          id="filter-toggle-btn"
-        >
+        <button className={`filter-toggle ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters((value) => !value)}>
           <Filter size={16} />
           Filter
-          {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}
-          <ChevronDown
-            size={14}
-            style={{
-              transform: showFilters ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s ease',
-            }}
-          />
+          <ChevronDown size={14} style={{ transform: showFilters ? 'rotate(180deg)' : 'none' }} />
         </button>
       </div>
 
       {showFilters && (
-        <div className="filter-panel" id="filter-panel">
+        <div className="filter-panel">
           <div className="filter-group">
             <label>Jenis Truk</label>
             <div className="filter-chips">
-              <button
-                className={`chip ${filterType === 'all' ? 'active' : ''}`}
-                onClick={() => setFilterType('all')}
-              >
-                Semua
-              </button>
-              {TRUCK_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  className={`chip ${filterType === type.value ? 'active' : ''}`}
-                  onClick={() => setFilterType(type.value)}
-                >
+              <button className={`chip ${filterType === 'all' ? 'active' : ''}`} onClick={() => setFilterType('all')}>Semua</button>
+              {TRUCK_TYPE_OPTIONS.map((type) => (
+                <button key={type.value} className={`chip ${filterType === type.value ? 'active' : ''}`} onClick={() => setFilterType(type.value)}>
                   {type.label}
                 </button>
               ))}
@@ -178,42 +158,18 @@ export default function RiwayatPage() {
           <div className="filter-group">
             <label>Status</label>
             <div className="filter-chips">
-              <button
-                className={`chip ${filterStatus === 'all' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('all')}
-              >
-                Semua
-              </button>
-              <button
-                className={`chip ${filterStatus === 'verified' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('verified')}
-              >
-                Verified
-              </button>
-              <button
-                className={`chip ${filterStatus === 'pending' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('pending')}
-              >
-                Pending
-              </button>
+              {LOG_STATUS_OPTIONS.map((option) => (
+                <button key={option.value} className={`chip ${filterStatus === option.value ? 'active' : ''}`} onClick={() => setFilterStatus(option.value)}>
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
-          {activeFilters > 0 && (
-            <button
-              className="clear-filters"
-              onClick={() => {
-                setFilterType('all');
-                setFilterStatus('all');
-              }}
-            >
-              Hapus semua filter
-            </button>
-          )}
         </div>
       )}
 
       <section className="summary-grid">
-        {historyStats.map((item) => (
+        {summary.map((item) => (
           <article className="summary-tile" key={item.label}>
             <span>{item.label}</span>
             <strong>{item.value}</strong>
@@ -227,7 +183,7 @@ export default function RiwayatPage() {
           <div className="empty-state-panel">
             <Loader2 size={48} className="spinner" />
             <h3>Memuat data...</h3>
-            <p>Mengambil riwayat retase dari server.</p>
+            <p>Mengambil data log retase dari server.</p>
           </div>
         ) : error ? (
           <div className="empty-state-panel">
@@ -237,83 +193,48 @@ export default function RiwayatPage() {
           </div>
         ) : filteredData.length === 0 ? (
           <div className="empty-state-panel">
-            <Search size={48} strokeWidth={1.5} />
+            <Search size={48} />
             <h3>Tidak ada data ditemukan</h3>
-            <p>Coba ubah kata kunci pencarian atau hapus filter yang aktif.</p>
+            <p>Coba ubah kata kunci atau hapus filter yang aktif.</p>
           </div>
         ) : (
           <>
-            <div className="riwayat-table-wrap">
-              <table className="riwayat-table" id="riwayat-table">
+            <div className="riwayat-table-wrap workbook-log-wrap">
+              <table className="riwayat-table workbook-log-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>No. Polisi</th>
-                    <th>Jenis</th>
-                    <th>Pemilik Pit</th>
-                    <th>Excavator</th>
-                    <th>Petugas</th>
+                    <th>No Reg</th>
+                    <th>Tanggal</th>
                     <th>Waktu</th>
+                    <th>Jenis Material</th>
+                    <th>Lokasi / Pemilik</th>
+                    <th>Alat Berat</th>
+                    <th>Checker Pit</th>
+                    <th>Jenis Truk</th>
+                    <th>No Polisi</th>
+                    <th>Kontraktor</th>
+                    <th>Checker Gate</th>
                     <th>Status</th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map((item) => (
-                    <tr key={`${item.truckId}-${item.id}`}>
+                    <tr key={item.id}>
+                      <td><span className="cell-id">{item.id}</span></td>
+                      <td>{item.date}</td>
+                      <td><span className="time-hour">{item.time}</span></td>
+                      <td>{item.materialType}</td>
+                      <td>{item.locationOwner}</td>
+                      <td>{item.heavyEquipment}</td>
+                      <td>{item.checkerPit}</td>
+                      <td><span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span></td>
+                      <td><span className="cell-truck-number">{item.truckNumber}</span></td>
+                      <td>{item.contractor}</td>
+                      <td>{item.checkerGate}</td>
+                      <td><StatusBadge status={item.status} /></td>
                       <td>
-                        <span className="cell-id">{item.id}</span>
-                      </td>
-                      <td>
-                        <span className="cell-truck-number">{item.truckNumber}</span>
-                      </td>
-                      <td>
-                        <span className={`type-badge ${item.truckType}`}>
-                          {item.truckTypeLabel}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="cell-pit">{item.pitOwner || '-'}</span>
-                      </td>
-                      <td>
-                        <div className="cell-exca">
-                          <span>{item.excaId || '-'}</span>
-                          {item.excaOperator && (
-                            <span className="exca-operator">{item.excaOperator}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="cell-inputby">
-                          <span className="inputby-name">{item.inputBy}</span>
-                          <span className="inputby-role">{item.inputRole}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="cell-time">
-                          <span className="time-date">{item.date}</span>
-                          <span className="time-hour">{item.time}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${item.status}`}>
-                          {item.status === 'verified' ? (
-                            <>
-                              <CheckCircle2 size={12} /> Verified
-                            </>
-                          ) : (
-                            <>
-                              <Clock size={12} /> Pending
-                            </>
-                          )}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className="view-btn"
-                          onClick={() => setSelectedRecord(item)}
-                          title="Lihat detail"
-                        >
+                        <button className="view-btn" onClick={() => setSelectedRecord(item)}>
                           <Eye size={16} />
                         </button>
                       </td>
@@ -325,39 +246,19 @@ export default function RiwayatPage() {
 
             <div className="riwayat-cards">
               {filteredData.map((item) => (
-                <div
-                  className="riwayat-card"
-                  key={`${item.truckId}-${item.id}`}
-                  onClick={() => setSelectedRecord(item)}
-                >
+                <div className="riwayat-card workbook-log-card" key={item.id} onClick={() => setSelectedRecord(item)}>
                   <div className="card-top">
                     <span className="cell-id">{item.id}</span>
-                    <span className={`status-badge ${item.status}`}>
-                      {item.status === 'verified' ? (
-                        <>
-                          <CheckCircle2 size={11} /> Verified
-                        </>
-                      ) : (
-                        <>
-                          <Clock size={11} /> Pending
-                        </>
-                      )}
-                    </span>
+                    <StatusBadge status={item.status} />
                   </div>
                   <div className="card-main">
-                    <div className="card-truck">
-                      <Truck size={16} />
-                      <span className="cell-truck-number">{item.truckNumber}</span>
-                      <span className={`type-badge ${item.truckType}`}>
-                        {item.truckTypeLabel}
-                      </span>
-                    </div>
+                    <strong className="cell-truck-number">{item.truckNumber}</strong>
+                    <span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span>
+                    <p>{item.materialType} • {item.locationOwner}</p>
                   </div>
                   <div className="card-meta">
-                    <span>
-                      <Calendar size={12} /> {item.date} {item.time}
-                    </span>
-                    <span>{item.inputBy}</span>
+                    <span>{item.date} {item.time}</span>
+                    <span>{item.checkerPit}</span>
                   </div>
                 </div>
               ))}
@@ -368,67 +269,26 @@ export default function RiwayatPage() {
 
       {selectedRecord && (
         <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
-          <div
-            className="modal-content"
-            onClick={(event) => event.stopPropagation()}
-            id="detail-modal"
-          >
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h3>Detail Retase</h3>
+              <h3>Detail Log Retase</h3>
               <button className="modal-close" onClick={() => setSelectedRecord(null)}>
                 <X size={20} />
               </button>
             </div>
             <div className="modal-body">
               <div className="detail-grid">
-                <div className="detail-item">
-                  <span className="detail-label">ID Retase</span>
-                  <span className="detail-value mono">{selectedRecord.id}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">No. Polisi</span>
-                  <span className="detail-value mono">{selectedRecord.truckNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Jenis Truk</span>
-                  <span className="detail-value">
-                    <span className={`type-badge ${selectedRecord.truckType}`}>
-                      {selectedRecord.truckTypeLabel}
-                    </span>
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Status</span>
-                  <span className="detail-value">
-                    <span className={`status-badge ${selectedRecord.status}`}>
-                      {selectedRecord.status === 'verified' ? 'Verified' : 'Pending'}
-                    </span>
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Pemilik Pit</span>
-                  <span className="detail-value">{selectedRecord.pitOwner || '-'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">ID Excavator</span>
-                  <span className="detail-value mono">{selectedRecord.excaId || '-'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Operator Excavator</span>
-                  <span className="detail-value">{selectedRecord.excaOperator || '-'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Input Oleh</span>
-                  <span className="detail-value">
-                    {selectedRecord.inputBy} ({selectedRecord.inputRole})
-                  </span>
-                </div>
-                <div className="detail-item full">
-                  <span className="detail-label">Waktu Input</span>
-                  <span className="detail-value">
-                    {selectedRecord.date} pukul {selectedRecord.time}
-                  </span>
-                </div>
+                <div className="detail-item"><span className="detail-label">No Reg</span><span className="detail-value mono">{selectedRecord.id}</span></div>
+                <div className="detail-item"><span className="detail-label">Tanggal / Waktu</span><span className="detail-value">{selectedRecord.date} {selectedRecord.time}</span></div>
+                <div className="detail-item"><span className="detail-label">Jenis Material</span><span className="detail-value">{selectedRecord.materialType}</span></div>
+                <div className="detail-item"><span className="detail-label">Lokasi / Pemilik</span><span className="detail-value">{selectedRecord.locationOwner}</span></div>
+                <div className="detail-item"><span className="detail-label">Alat Berat</span><span className="detail-value">{selectedRecord.heavyEquipment}</span></div>
+                <div className="detail-item"><span className="detail-label">Jenis Truk</span><span className="detail-value">{selectedRecord.truckTypeLabel}</span></div>
+                <div className="detail-item"><span className="detail-label">No Polisi</span><span className="detail-value mono">{selectedRecord.truckNumber}</span></div>
+                <div className="detail-item"><span className="detail-label">Kontraktor</span><span className="detail-value">{selectedRecord.contractor}</span></div>
+                <div className="detail-item"><span className="detail-label">Checker Pit</span><span className="detail-value">{selectedRecord.checkerPit}</span></div>
+                <div className="detail-item"><span className="detail-label">Checker Gate</span><span className="detail-value">{selectedRecord.checkerGate}</span></div>
+                <div className="detail-item full"><span className="detail-label">Status</span><span className="detail-value"><StatusBadge status={selectedRecord.status} /></span></div>
               </div>
             </div>
           </div>

@@ -7,6 +7,7 @@ import DashboardPage from './pages/Dashboard/DashboardPage';
 import InputRetasePage from './pages/InputRetase/InputRetasePage';
 import ExitVerificationPage from './pages/ExitVerification/ExitVerificationPage';
 import RiwayatPage from './pages/Riwayat/RiwayatPage';
+import RekapPage from './pages/Rekap/RekapPage';
 import KelolaPenggunaPage from './pages/KelolaPengguna/KelolaPenggunaPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -67,9 +68,7 @@ function AppRoutes() {
         path="/staff/input"
         element={(
           <ProtectedRoute allowedRoles={['staff_pos']}>
-            <DashboardLayout>
-              <InputRetasePage />
-            </DashboardLayout>
+            <Navigate to="/staff/verifikasi" replace />
           </ProtectedRoute>
         )}
       />
@@ -89,6 +88,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['staff_pos']}>
             <DashboardLayout>
               <RiwayatPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/staff/rekap"
+        element={(
+          <ProtectedRoute allowedRoles={['staff_pos']}>
+            <DashboardLayout>
+              <RekapPage />
             </DashboardLayout>
           </ProtectedRoute>
         )}
@@ -124,6 +133,16 @@ function AppRoutes() {
           </ProtectedRoute>
         )}
       />
+      <Route
+        path="/checker/rekap"
+        element={(
+          <ProtectedRoute allowedRoles={['checker']}>
+            <DashboardLayout>
+              <RekapPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        )}
+      />
 
       <Route
         path="/admin"
@@ -136,11 +155,11 @@ function AppRoutes() {
         )}
       />
       <Route
-        path="/admin/input-staff"
+        path="/admin/input"
         element={(
           <ProtectedRoute allowedRoles={['admin']}>
             <DashboardLayout>
-              <InputRetasePage mode="staff" />
+              <InputRetasePage />
             </DashboardLayout>
           </ProtectedRoute>
         )}
@@ -150,10 +169,14 @@ function AppRoutes() {
         element={(
           <ProtectedRoute allowedRoles={['admin']}>
             <DashboardLayout>
-              <InputRetasePage mode="checker" />
+              <InputRetasePage />
             </DashboardLayout>
           </ProtectedRoute>
         )}
+      />
+      <Route
+        path="/admin/input-staff"
+        element={<Navigate to="/admin/input" replace />}
       />
       <Route
         path="/admin/verifikasi"
@@ -171,6 +194,16 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['admin']}>
             <DashboardLayout>
               <RiwayatPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/admin/rekap"
+        element={(
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DashboardLayout>
+              <RekapPage />
             </DashboardLayout>
           </ProtectedRoute>
         )}

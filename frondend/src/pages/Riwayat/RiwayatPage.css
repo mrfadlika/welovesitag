@@ -42,6 +42,10 @@
   letter-spacing: -0.4px;
 }
 
+.riwayat-hero > div:first-child {
+  min-width: 0;
+}
+
 .riwayat-hero p {
   max-width: 46rem;
   margin: 0.6rem 0 0;
@@ -193,6 +197,7 @@
 .riwayat-page .filter-panel {
   display: flex;
   align-items: flex-end;
+  justify-content: space-between;
   gap: var(--space-lg);
   padding: var(--space-lg);
   background: var(--color-bg-card);
@@ -206,6 +211,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .riwayat-page .filter-group label {
@@ -375,6 +381,21 @@
   border-color: var(--color-accent-warning-border);
 }
 
+.riwayat-page .status-badge.rejected {
+  background: var(--color-accent-danger-soft);
+  color: var(--color-accent-danger);
+  border-color: var(--color-accent-danger-border);
+}
+
+.workbook-log-wrap {
+  overflow-x: auto;
+}
+
+.workbook-log-table th,
+.workbook-log-table td {
+  white-space: nowrap;
+}
+
 /* ========== TABLE METADATA CELLS ========== */
 .riwayat-page .cell-exca,
 .riwayat-page .cell-inputby,
@@ -453,6 +474,13 @@
 
 .riwayat-page .card-main {
   margin-top: 0.9rem;
+  min-width: 0;
+}
+
+.workbook-log-card p {
+  margin: 0.55rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
 }
 
 .riwayat-page .card-truck {

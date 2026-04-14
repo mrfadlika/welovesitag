@@ -9,6 +9,11 @@ function parseNumericSuffix(code, prefix) {
 
 async function getNextCode(model, prefix) {
   const latestRecord = await model.findFirst({
+    where: {
+      code: {
+        startsWith: `${prefix}-`,
+      },
+    },
     orderBy: { id: 'desc' },
     select: { code: true },
   });

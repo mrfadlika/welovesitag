@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const truckRoutes = require('./routes/trucks');
 const checkoutRoutes = require('./routes/checkouts');
 const userRoutes = require('./routes/users');
+const settingsRoutes = require('./routes/settings');
 
 // Init app
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/trucks', truckRoutes);
 app.use('/api/checkouts', checkoutRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/settings', settingsRoutes);
 
 if (hasFrontendBuild) {
   app.use(express.static(frontendDistPath));

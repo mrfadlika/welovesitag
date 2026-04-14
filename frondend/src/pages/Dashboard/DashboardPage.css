@@ -49,6 +49,7 @@
 .hero-copy {
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .hero-copy h2 {
@@ -82,6 +83,7 @@
   position: relative;
   z-index: 1;
   align-content: center;
+  min-width: 0;
 }
 
 .hero-metric {
@@ -314,6 +316,10 @@
   margin-bottom: 1.4rem;
 }
 
+.panel-header > div {
+  min-width: 0;
+}
+
 .panel-title {
   margin: 0;
   font-size: 1.3rem;
@@ -469,6 +475,16 @@
   font-size: 0.86rem;
   color: var(--color-text-tertiary);
   line-height: 1.5;
+}
+
+.rekap-row-preview .guide-step {
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.rekap-row-preview strong,
+.rekap-row-preview p {
+  overflow-wrap: anywhere;
 }
 
 /* ========== RESPONSIVE ========== */

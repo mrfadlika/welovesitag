@@ -1,244 +1,193 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '../../contexts/useAuth';
-import { truckAPI, checkoutAPI } from '../../services/api';
-import { TRUCK_TYPES, PIT_OWNERS } from '../../data/dummyData';
+import { useMemo, useRef, useState } from 'react';
 import {
-  Truck,
-  Camera,
-  Upload,
-  X,
-  CheckCircle,
   AlertCircle,
-  Loader2,
-  Image as ImageIcon,
+  Camera,
+  CheckCircle,
+  ClipboardList,
   Hash,
-  User as UserIcon,
+  Image as ImageIcon,
+  Loader2,
   MapPin,
   Pickaxe,
+  Truck,
+  Upload,
+  User as UserIcon,
+  X,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/useAuth';
+import { checkoutAPI } from '../../services/api';
+import {
+  CONTRACTOR_OPTIONS,
+  HEAVY_EQUIPMENT_OPTIONS,
+  LOCATION_OPTIONS,
+  MATERIAL_OPTIONS,
+  TRUCK_TYPE_OPTIONS,
+  getOptionLabel,
+  isCustomOption,
+} from '../../data/retaseOptions';
 import './InputRetasePage.css';
 
 const EMPTY_FORM = {
-  truckNumber: '',
+  materialType: '',
+  materialCustom: '',
+  locationOwner: '',
+  locationCustom: '',
+  heavyEquipment: '',
+  heavyEquipmentCustom: '',
   truckType: '',
-  pitOwner: '',
-  excaId: '',
-  excaOperator: '',
+  truckTypeCustom: '',
+  contractor: '',
+  contractorCustom: '',
+  truckNumber: '',
+  checkerPit: '',
   photo: null,
 };
 
-const MAX_RECENT_TRUCKS = 6;
-
-function hasDraftValue(data) {
-  return Object.values(data).some((value) =>
-    typeof value === 'string' ? value.trim().length > 0 : Boolean(value)
+function FieldError({ message }) {
+  if (!message) return null;
+  return (
+    <span className="field-error">
+      <AlertCircle size={12} /> {message}
+    </span>
   );
 }
 
-function readStoredJson(key, fallback) {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
+function InputGroup({ id, label, icon, error, ...props }) {
+  return (
+    <div className={`field-group ${error ? 'error' : ''}`}>
+      <label htmlFor={id}>
+        {label} <span className="required">*</span>
+      </label>
+      <div className="field-input-wrap">
+        {icon}
+        <input id={id} className="field-input" {...props} />
+      </div>
+      <FieldError message={error} />
+    </div>
+  );
 }
 
-function writeStoredJson(key, value) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Ignore storage failures in browsers with blocked localStorage.
-  }
+function SelectGroup({ id, label, icon, options, error, ...props }) {
+  return (
+    <div className={`field-group ${error ? 'error' : ''}`}>
+      <label htmlFor={id}>
+        {label} <span className="required">*</span>
+      </label>
+      <div className="field-input-wrap">
+        {icon}
+        <select id={id} className="field-input field-select" {...props}>
+          <option value="">Pilih {label.toLowerCase()}...</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <FieldError message={error} />
+    </div>
+  );
 }
 
-export default function InputRetasePage({ mode = null }) {
+function resolveValue(selectedValue, customValue) {
+  if (selectedValue === '__custom__' || selectedValue === 'lainnya') {
+    return customValue.trim();
+  }
+
+  return selectedValue.trim();
+}
+
+export default function InputRetasePage() {
   const { user } = useAuth();
-  const effectiveRole = mode || user?.role;
-  const isStaff = effectiveRole === 'staff_pos' || mode === 'staff';
-  const isChecker = effectiveRole === 'checker' || mode === 'checker';
   const isAdmin = user?.role === 'admin';
-  const shouldShowTruckType = isStaff;
-  const storageRoleKey = isChecker ? 'checker' : isStaff ? 'staff' : user?.role || 'general';
-  const draftStorageKey = `sitag:draft:${storageRoleKey}`;
-  const recentStorageKey = `sitag:recent-trucks:${storageRoleKey}`;
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formData, setFormData] = useState({
+    ...EMPTY_FORM,
+    checkerPit: user?.name || user?.username || '',
+  });
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [errors, setErrors] = useState({});
-  const [draftRecovered, setDraftRecovered] = useState(false);
-  const [recentEntries, setRecentEntries] = useState([]);
 
-  useEffect(() => {
-    const savedDraft = readStoredJson(draftStorageKey, null);
-    const savedRecent = readStoredJson(recentStorageKey, []);
+  const resolvedSubmission = useMemo(
+    () => ({
+      materialType: resolveValue(formData.materialType, formData.materialCustom),
+      locationOwner: resolveValue(formData.locationOwner, formData.locationCustom),
+      heavyEquipment: resolveValue(formData.heavyEquipment, formData.heavyEquipmentCustom),
+      truckType: formData.truckType || 'lainnya',
+      truckTypeLabel:
+        formData.truckType === 'dyna'
+          ? 'Dyna'
+          : formData.truckType === 'fuso'
+            ? 'Fuso'
+            : formData.truckTypeCustom.trim(),
+      contractor: resolveValue(formData.contractor, formData.contractorCustom),
+      checkerPit: formData.checkerPit.trim(),
+    }),
+    [formData]
+  );
 
-    if (savedDraft && hasDraftValue(savedDraft)) {
-      setFormData((previous) => ({
-        ...previous,
-        ...savedDraft,
-        photo: null,
-      }));
-      setDraftRecovered(true);
-    }
-
-    setRecentEntries(Array.isArray(savedRecent) ? savedRecent : []);
-  }, [draftStorageKey, recentStorageKey]);
-
-  useEffect(() => {
-    const { photo, ...draftData } = formData;
-
-    if (hasDraftValue(draftData)) {
-      writeStoredJson(draftStorageKey, draftData);
-      return;
-    }
-
-    try {
-      window.localStorage.removeItem(draftStorageKey);
-    } catch {
-      // Ignore storage failures.
-    }
-  }, [draftStorageKey, formData]);
-
-  const resetForm = ({ clearDraft = true } = {}) => {
-    setFormData(EMPTY_FORM);
-    setPhotoPreview(null);
-    setErrors({});
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-
-    if (cameraInputRef.current) {
-      cameraInputRef.current.value = '';
-    }
-
-    if (clearDraft) {
-      try {
-        window.localStorage.removeItem(draftStorageKey);
-      } catch {
-        // Ignore storage failures.
-      }
-
-      setDraftRecovered(false);
-    }
-  };
-
-  const rememberRecentTruck = (currentFormData) => {
-    const nextEntry = {
-      truckNumber: currentFormData.truckNumber.trim(),
-      truckType: currentFormData.truckType || '',
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (!nextEntry.truckNumber) {
-      return;
-    }
-
-    const nextRecent = [
-      nextEntry,
-      ...recentEntries.filter((entry) => entry.truckNumber !== nextEntry.truckNumber),
-    ].slice(0, MAX_RECENT_TRUCKS);
-
-    setRecentEntries(nextRecent);
-    writeStoredJson(recentStorageKey, nextRecent);
-  };
-
-  const handleChange = (field, value) => {
+  const setField = (field, value) => {
     setFormData((previous) => ({ ...previous, [field]: value }));
-
-    if (errors[field]) {
-      setErrors((previous) => {
-        const nextErrors = { ...previous };
-        delete nextErrors[field];
-        return nextErrors;
-      });
-    }
-  };
-
-  const applyRecentEntry = (entry) => {
-    setFormData((previous) => ({
-      ...previous,
-      truckNumber: entry.truckNumber,
-      truckType: shouldShowTruckType ? entry.truckType || previous.truckType : previous.truckType,
-    }));
-
-    setErrors((previous) => {
-      const nextErrors = { ...previous };
-      delete nextErrors.truckNumber;
-      delete nextErrors.truckType;
-      return nextErrors;
-    });
+    setErrors((previous) => ({ ...previous, [field]: '' }));
   };
 
   const handlePhotoUpload = (event) => {
     const file = event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setErrors((previous) => ({
-        ...previous,
-        photo: 'Ukuran foto maksimal 5MB',
-      }));
+      setErrors((previous) => ({ ...previous, photo: 'Ukuran foto maksimal 5MB' }));
       return;
     }
 
     setFormData((previous) => ({ ...previous, photo: file }));
-
     const reader = new FileReader();
     reader.onloadend = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
-
-    setErrors((previous) => {
-      const nextErrors = { ...previous };
-      delete nextErrors.photo;
-      return nextErrors;
-    });
   };
 
   const removePhoto = () => {
     setFormData((previous) => ({ ...previous, photo: null }));
     setPhotoPreview(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-
-    if (cameraInputRef.current) {
-      cameraInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   const validate = () => {
     const nextErrors = {};
+    const requiredFields = [
+      ['materialType', !formData.materialType, 'Pilih jenis material'],
+      ['locationOwner', !formData.locationOwner, 'Pilih lokasi / pemilik'],
+      ['heavyEquipment', !formData.heavyEquipment, 'Pilih alat berat'],
+      ['truckType', !formData.truckType, 'Pilih jenis truk'],
+      ['contractor', !formData.contractor, 'Pilih kontraktor'],
+      ['truckNumber', !formData.truckNumber.trim(), 'No. polisi wajib diisi'],
+      ['checkerPit', !resolvedSubmission.checkerPit, 'Checker pit wajib diisi'],
+    ];
 
-    if (!formData.truckNumber.trim()) {
-      nextErrors.truckNumber = 'No. polisi wajib diisi';
+    requiredFields.forEach(([field, invalid, message]) => {
+      if (invalid) nextErrors[field] = message;
+    });
+
+    if (isCustomOption(formData.materialType) && !formData.materialCustom.trim()) {
+      nextErrors.materialCustom = 'Isi jenis material lainnya';
     }
-
-    if (shouldShowTruckType && !formData.truckType) {
-      nextErrors.truckType = 'Pilih jenis truk';
+    if (isCustomOption(formData.locationOwner) && !formData.locationCustom.trim()) {
+      nextErrors.locationCustom = 'Isi lokasi / pemilik lainnya';
     }
-
-    if (isChecker) {
-      if (!formData.pitOwner) {
-        nextErrors.pitOwner = 'Pilih pemilik pit';
-      }
-
-      if (!formData.excaId.trim()) {
-        nextErrors.excaId = 'No. identitas excavator wajib diisi';
-      }
-
-      if (!formData.excaOperator.trim()) {
-        nextErrors.excaOperator = 'Nama operator wajib diisi';
-      }
+    if (isCustomOption(formData.heavyEquipment) && !formData.heavyEquipmentCustom.trim()) {
+      nextErrors.heavyEquipmentCustom = 'Isi alat berat lainnya';
+    }
+    if (isCustomOption(formData.truckType) && !formData.truckTypeCustom.trim()) {
+      nextErrors.truckTypeCustom = 'Isi jenis truk lainnya';
+    }
+    if (isCustomOption(formData.contractor) && !formData.contractorCustom.trim()) {
+      nextErrors.contractorCustom = 'Isi kontraktor lainnya';
     }
 
     setErrors(nextErrors);
@@ -247,54 +196,42 @@ export default function InputRetasePage({ mode = null }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setIsSubmitting(true);
     setSubmitResult(null);
 
-    const actorName = user?.name || user?.username || 'Unknown';
-    const currentFormData = { ...formData };
-
     try {
-      const result = isChecker
-        ? await checkoutAPI.create({
-            truckNumber: currentFormData.truckNumber,
-            pitOwner: currentFormData.pitOwner,
-            excaId: currentFormData.excaId,
-            excaOperator: currentFormData.excaOperator,
-            createdBy: actorName,
-            createdByRole: user?.role === 'admin' ? 'Admin' : 'Checker',
-            photo: photoPreview,
-          })
-        : await truckAPI.create({
-            truckNumber: currentFormData.truckNumber,
-            truckType: currentFormData.truckType,
-            registeredBy: actorName,
-            registeredByRole: user?.role === 'admin' ? 'Admin' : 'Staff Pos',
-            photo: photoPreview,
-          });
+      const result = await checkoutAPI.create({
+        truckNumber: formData.truckNumber.trim(),
+        truckType: formData.truckType,
+        truckTypeLabel: resolvedSubmission.truckTypeLabel,
+        materialType: resolvedSubmission.materialType,
+        locationOwner: resolvedSubmission.locationOwner,
+        heavyEquipment: resolvedSubmission.heavyEquipment,
+        contractor: resolvedSubmission.contractor,
+        checkerPit: resolvedSubmission.checkerPit,
+        createdByRole: isAdmin ? 'Admin' : 'Checker Pit',
+        photo: photoPreview,
+      });
 
-      if (result.success) {
-        rememberRecentTruck(currentFormData);
-        setSubmitResult({
-          success: true,
-          id:
-            result.data?.id ||
-            `RET-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
-          message: isChecker
-            ? 'Data checkout berhasil dicatat.'
-            : 'Data registrasi masuk berhasil dicatat.',
-        });
-        resetForm();
-      } else {
-        setSubmitResult({
-          success: false,
-          message: result.message || 'Gagal menyimpan data',
-        });
+      if (!result.success) {
+        setSubmitResult({ success: false, message: result.message || 'Gagal menyimpan data' });
+        return;
       }
+
+      setSubmitResult({
+        success: true,
+        id: result.data?.id || '-',
+        message: 'Data retase berhasil masuk ke log real-time.',
+      });
+      setFormData({
+        ...EMPTY_FORM,
+        checkerPit: user?.name || user?.username || '',
+      });
+      setPhotoPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
     } catch (error) {
       setSubmitResult({
         success: false,
@@ -302,447 +239,145 @@ export default function InputRetasePage({ mode = null }) {
       });
     } finally {
       setIsSubmitting(false);
-      setTimeout(() => setSubmitResult(null), 4000);
     }
   };
 
-  const getRoleTitle = () => {
-    if (isChecker && isAdmin) return 'Input Retase Mode Checker';
-    if (isStaff && isAdmin) return 'Input Retase Mode Staff POS';
-    if (isChecker) return 'Input Checkout Truck';
-    if (isAdmin) return 'Input Retase Admin';
-    return 'Registrasi Truck Masuk';
-  };
+  const summaryItems = [
+    ['Jenis Material', resolvedSubmission.materialType || getOptionLabel(MATERIAL_OPTIONS, formData.materialType)],
+    ['Lokasi / Pemilik', resolvedSubmission.locationOwner || getOptionLabel(LOCATION_OPTIONS, formData.locationOwner)],
+    ['Alat Berat', resolvedSubmission.heavyEquipment || getOptionLabel(HEAVY_EQUIPMENT_OPTIONS, formData.heavyEquipment)],
+    ['Jenis Truk', resolvedSubmission.truckTypeLabel || getOptionLabel(TRUCK_TYPE_OPTIONS, formData.truckType)],
+    ['No Polisi', formData.truckNumber || '-'],
+    ['Kontraktor', resolvedSubmission.contractor || getOptionLabel(CONTRACTOR_OPTIONS, formData.contractor)],
+    ['Checker Pit', resolvedSubmission.checkerPit || '-'],
+    ['Checker Gate', 'Otomatis saat verifikasi'],
+  ];
 
-  const getRoleDescription = () => {
-    if (isChecker && isAdmin) {
-      return 'Mode checkout untuk admin. Masukkan data pit, excavator, dan operator sebelum truck keluar dari area tambang.';
-    }
+  const completionPercent = Math.round(
+    (summaryItems.filter(([, value]) => value && value !== '-').length / summaryItems.length) * 100
+  );
 
-    if (isStaff && isAdmin) {
-      return 'Mode registrasi untuk admin. Gunakan saat membantu staff pos mencatat truck yang baru masuk.';
-    }
-
-    if (isChecker) {
-      return 'Isi data checkout dengan urutan sederhana: nomor polisi, pit owner, excavator, lalu operator.';
-    }
-
-    if (isAdmin) {
-      return 'Gunakan form ini untuk membantu pencatatan retase lintas peran dari dashboard admin.';
-    }
-
-    return 'Catat truck masuk dengan huruf besar yang jelas agar mudah dicari di riwayat dan verifikasi.';
-  };
-
-  const getModeIndicator = () => {
-    if (isAdmin && mode === 'checker') {
-      return { label: 'Mode Checkout', icon: <Pickaxe size={18} /> };
-    }
-
-    if (isAdmin && mode === 'staff') {
-      return { label: 'Mode Registrasi', icon: <Truck size={18} /> };
-    }
-
-    if (isChecker) {
-      return { label: 'Checker', icon: <Pickaxe size={18} /> };
-    }
-
-    if (isAdmin) {
-      return { label: 'Admin Panel', icon: <Truck size={18} /> };
-    }
-
-    return { label: 'Staff POS', icon: <Truck size={18} /> };
-  };
-
-  const requiredItems = useMemo(() => {
-    const items = [
-      {
-        label: 'No. polisi',
-        value: formData.truckNumber || '-',
-        done: Boolean(formData.truckNumber.trim()),
-      },
-    ];
-
-    if (shouldShowTruckType) {
-      const truckTypeLabel =
-        TRUCK_TYPES.find((type) => type.value === formData.truckType)?.label || '-';
-      items.push({
-        label: 'Jenis truck',
-        value: truckTypeLabel,
-        done: Boolean(formData.truckType),
-      });
-    }
-
-    if (isChecker) {
-      items.push(
-        {
-          label: 'Pit owner',
-          value: PIT_OWNERS.find((owner) => owner.value === formData.pitOwner)?.label || '-',
-          done: Boolean(formData.pitOwner),
-        },
-        {
-          label: 'No. excavator',
-          value: formData.excaId || '-',
-          done: Boolean(formData.excaId.trim()),
-        },
-        {
-          label: 'Operator excavator',
-          value: formData.excaOperator || '-',
-          done: Boolean(formData.excaOperator.trim()),
-        }
-      );
-    }
-
-    items.push({
-      label: 'Foto',
-      value: photoPreview ? 'Sudah ditambahkan' : 'Belum ada foto',
-      done: Boolean(photoPreview),
-      optional: true,
-    });
-
-    return items;
-  }, [
-    formData.excaId,
-    formData.excaOperator,
-    formData.pitOwner,
-    formData.truckNumber,
-    formData.truckType,
-    isChecker,
-    photoPreview,
-    shouldShowTruckType,
-  ]);
-
-  const requiredOnly = requiredItems.filter((item) => !item.optional);
-  const completedRequiredCount = requiredOnly.filter((item) => item.done).length;
-  const completionPercent = requiredOnly.length
-    ? Math.round((completedRequiredCount / requiredOnly.length) * 100)
-    : 0;
-
-  const helperSteps = isChecker
-    ? [
-        {
-          title: 'Isi truck lebih dulu',
-          detail: 'Nomor polisi yang rapi memudahkan pencarian saat verifikasi.',
-        },
-        {
-          title: 'Pastikan pit dan excavator cocok',
-          detail: 'Data checker akan dipakai staff pos untuk memutuskan truck boleh keluar.',
-        },
-        {
-          title: 'Tambahkan foto bila kondisi lapangan perlu bukti',
-          detail: 'Foto tidak wajib, tetapi membantu saat ada pemeriksaan ulang.',
-        },
-      ]
-    : [
-        {
-          title: 'Isi nomor polisi dengan huruf besar',
-          detail: 'Format seragam membuat pencarian di riwayat jauh lebih cepat.',
-        },
-        {
-          title: 'Pilih tipe truck sebelum simpan',
-          detail: 'Jenis truck dipakai untuk ringkasan armada pada dashboard.',
-        },
-        {
-          title: 'Gunakan saran nomor polisi terakhir',
-          detail: 'Cocok untuk armada yang bolak-balik melewati pos masuk.',
-        },
-      ];
-
-  const buttonText = isChecker ? 'Simpan Checkout' : 'Simpan Registrasi';
+  const now = new Date();
 
   return (
     <div className="input-retase-page" id="input-retase-page">
       {submitResult?.success && (
         <div className="success-toast" role="alert">
-          <div className="toast-icon">
-            <CheckCircle size={22} />
-          </div>
+          <div className="toast-icon"><CheckCircle size={22} /></div>
           <div className="toast-content">
             <span className="toast-title">Berhasil disimpan</span>
             <span className="toast-message">{submitResult.message}</span>
-            <span className="toast-id">ID: {submitResult.id}</span>
+            <span className="toast-id">No Reg: {submitResult.id}</span>
           </div>
         </div>
       )}
 
       <div className="input-page-header">
         <div className="input-header-info">
-          <span className="section-kicker">Form Operasional</span>
-          <h2>{getRoleTitle()}</h2>
-          <p>{getRoleDescription()}</p>
+          <span className="section-kicker">Workbook Sync</span>
+          <h2>Form Input Data Retase</h2>
+          <p>Field sekarang disusun mengikuti sheet Excel: material, lokasi, alat berat, jenis truk, no polisi, kontraktor, checker pit, dan checker gate.</p>
         </div>
-        <div className={`role-indicator ${isChecker ? 'checker' : 'staff'}`}>
-          {getModeIndicator().icon}
-          <span>{getModeIndicator().label}</span>
+        <div className="role-indicator checker">
+          <Pickaxe size={18} />
+          <span>{isAdmin ? 'Admin Input' : 'Checker Pit'}</span>
         </div>
       </div>
 
-      {draftRecovered && (
-        <div className="draft-banner surface-card" role="status">
-          <div>
-            <strong>Draft terakhir dipulihkan.</strong>
-            <span>Lanjutkan pengisian atau kosongkan form bila ingin mulai dari awal.</span>
-          </div>
-          <button type="button" className="draft-clear-btn" onClick={() => resetForm()}>
-            Kosongkan
-          </button>
-        </div>
-      )}
-
       <div className="input-layout">
-        <form className="input-form" onSubmit={handleSubmit} id="retase-form">
-          <div className="form-sections">
-            <div className="form-section">
-              <div className="section-label">
-                <Truck size={18} />
-                <div>
-                  <span>{isChecker ? 'Informasi Truck Checkout' : 'Informasi Truck Masuk'}</span>
-                  <small>Mulai dari nomor polisi agar pencarian data tetap konsisten.</small>
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <div className={`field-group ${errors.truckNumber ? 'error' : ''}`}>
-                  <label htmlFor="truck-number">
-                    No. Polisi Truck <span className="required">*</span>
-                  </label>
-                  <div className="field-input-wrap">
-                    <Hash size={18} className="field-icon" />
-                    <input
-                      id="truck-number"
-                      type="text"
-                      placeholder="Contoh: DD 1234 AB"
-                      value={formData.truckNumber}
-                      onChange={(event) =>
-                        handleChange('truckNumber', event.target.value.toUpperCase())
-                      }
-                      className="field-input"
-                      maxLength={15}
-                    />
-                  </div>
-                  {errors.truckNumber && (
-                    <span className="field-error">
-                      <AlertCircle size={12} /> {errors.truckNumber}
-                    </span>
-                  )}
-                </div>
-
-                {shouldShowTruckType && (
-                  <div className={`field-group ${errors.truckType ? 'error' : ''}`}>
-                    <label htmlFor="truck-type">
-                      Jenis Truck <span className="required">*</span>
-                    </label>
-                    <div className="truck-type-selector">
-                      {TRUCK_TYPES.map((type) => (
-                        <button
-                          key={type.value}
-                          type="button"
-                          className={`type-option ${
-                            formData.truckType === type.value ? 'selected' : ''
-                          }`}
-                          onClick={() => handleChange('truckType', type.value)}
-                          id={`truck-type-${type.value}`}
-                        >
-                          <Truck size={24} />
-                          <span className="type-name">{type.label}</span>
-                          <span className="type-capacity">{type.capacity}</span>
-                          {formData.truckType === type.value && (
-                            <span className="type-check">
-                              <CheckCircle size={16} />
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {errors.truckType && (
-                      <span className="field-error">
-                        <AlertCircle size={12} /> {errors.truckType}
-                      </span>
-                    )}
-                  </div>
-                )}
+        <form className="input-form" onSubmit={handleSubmit}>
+          <div className="form-section workbook-sheet-card">
+            <div className="section-label">
+              <ClipboardList size={18} />
+              <div>
+                <span>Header Workbook</span>
+                <small>No reg, tanggal, waktu, dan checker pit mengikuti format Excel.</small>
               </div>
             </div>
+            <div className="readonly-strip">
+              <div className="readonly-tile"><span className="readonly-label">No Reg</span><strong>Otomatis saat simpan</strong></div>
+              <div className="readonly-tile"><span className="readonly-label">Tanggal</span><strong>{now.toLocaleDateString('id-ID')}</strong></div>
+              <div className="readonly-tile"><span className="readonly-label">Waktu</span><strong>{now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</strong></div>
+              <div className="readonly-tile"><span className="readonly-label">Checker Pit</span><strong>{resolvedSubmission.checkerPit || '-'}</strong></div>
+            </div>
+          </div>
 
-            {isChecker && (
-              <div className="form-section checker-section">
-                <div className="section-label">
-                  <Pickaxe size={18} />
-                  <div>
-                    <span>Informasi Excavator dan Pit</span>
-                    <small>Bagian ini wajib jelas karena dipakai saat verifikasi keluar.</small>
-                  </div>
+          <div className="form-section">
+            <div className="section-label">
+              <Pickaxe size={18} />
+              <div>
+                <span>Data Retase Utama</span>
+                <small>Semua isian ini akan langsung membentuk kolom pada data log retase real-time.</small>
+              </div>
+            </div>
+            <div className="form-grid">
+              <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={MATERIAL_OPTIONS} error={errors.materialType} />
+              <SelectGroup id="locationOwner" label="Lokasi / Pemilik" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={LOCATION_OPTIONS} error={errors.locationOwner} />
+              {isCustomOption(formData.materialType) && <InputGroup id="materialCustom" label="Jenis Material Lainnya" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialCustom} onChange={(event) => setField('materialCustom', event.target.value)} placeholder="Tulis material lain" error={errors.materialCustom} />}
+              {isCustomOption(formData.locationOwner) && <InputGroup id="locationCustom" label="Lokasi / Pemilik Lainnya" icon={<MapPin size={18} className="field-icon" />} value={formData.locationCustom} onChange={(event) => setField('locationCustom', event.target.value)} placeholder="Tulis lokasi lain" error={errors.locationCustom} />}
+              <SelectGroup id="heavyEquipment" label="Alat Berat" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipment} onChange={(event) => setField('heavyEquipment', event.target.value)} options={HEAVY_EQUIPMENT_OPTIONS} error={errors.heavyEquipment} />
+              <SelectGroup id="contractor" label="Kontraktor" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractor} onChange={(event) => setField('contractor', event.target.value)} options={CONTRACTOR_OPTIONS} error={errors.contractor} />
+              {isCustomOption(formData.heavyEquipment) && <InputGroup id="heavyEquipmentCustom" label="Alat Berat Lainnya" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipmentCustom} onChange={(event) => setField('heavyEquipmentCustom', event.target.value)} placeholder="Tulis alat berat lain" error={errors.heavyEquipmentCustom} />}
+              {isCustomOption(formData.contractor) && <InputGroup id="contractorCustom" label="Kontraktor Lainnya" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractorCustom} onChange={(event) => setField('contractorCustom', event.target.value)} placeholder="Tulis kontraktor lain" error={errors.contractorCustom} />}
+              <SelectGroup id="truckType" label="Jenis Truk" icon={<Truck size={18} className="field-icon" />} value={formData.truckType} onChange={(event) => setField('truckType', event.target.value)} options={TRUCK_TYPE_OPTIONS} error={errors.truckType} />
+              <InputGroup id="truckNumber" label="No Polisi" icon={<Hash size={18} className="field-icon" />} value={formData.truckNumber} onChange={(event) => setField('truckNumber', event.target.value.toUpperCase())} placeholder="Contoh: DD 1234 AB" error={errors.truckNumber} />
+              {isCustomOption(formData.truckType) && <InputGroup id="truckTypeCustom" label="Jenis Truk Lainnya" icon={<Truck size={18} className="field-icon" />} value={formData.truckTypeCustom} onChange={(event) => setField('truckTypeCustom', event.target.value)} placeholder="Tulis jenis truk lain" error={errors.truckTypeCustom} />}
+              <div className={`field-group full-width ${errors.checkerPit ? 'error' : ''}`}>
+                <label htmlFor="checkerPit">Checker Pit <span className="required">*</span></label>
+                <div className="field-input-wrap">
+                  <UserIcon size={18} className="field-icon" />
+                  <input id="checkerPit" className="field-input" value={formData.checkerPit} onChange={(event) => setField('checkerPit', event.target.value)} readOnly={!isAdmin} />
                 </div>
+                <span className="inline-note">{isAdmin ? 'Admin dapat menyesuaikan nama checker pit saat input pengganti.' : 'Terisi dari akun login checker.'}</span>
+                <FieldError message={errors.checkerPit} />
+              </div>
+            </div>
+          </div>
 
-                <div className="form-grid">
-                  <div className={`field-group ${errors.pitOwner ? 'error' : ''}`}>
-                    <label htmlFor="pit-owner">
-                      Pit Owner <span className="required">*</span>
-                    </label>
-                    <div className="field-input-wrap">
-                      <MapPin size={18} className="field-icon" />
-                      <select
-                        id="pit-owner"
-                        value={formData.pitOwner}
-                        onChange={(event) => handleChange('pitOwner', event.target.value)}
-                        className="field-input field-select"
-                      >
-                        <option value="">Pilih pit owner...</option>
-                        {PIT_OWNERS.map((owner) => (
-                          <option key={owner.value} value={owner.value}>
-                            {owner.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {errors.pitOwner && (
-                      <span className="field-error">
-                        <AlertCircle size={12} /> {errors.pitOwner}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={`field-group ${errors.excaId ? 'error' : ''}`}>
-                    <label htmlFor="exca-id">
-                      No. Excavator <span className="required">*</span>
-                    </label>
-                    <div className="field-input-wrap">
-                      <Hash size={18} className="field-icon" />
-                      <input
-                        id="exca-id"
-                        type="text"
-                        placeholder="Contoh: EXC-001"
-                        value={formData.excaId}
-                        onChange={(event) =>
-                          handleChange('excaId', event.target.value.toUpperCase())
-                        }
-                        className="field-input"
-                        maxLength={20}
-                      />
-                    </div>
-                    {errors.excaId && (
-                      <span className="field-error">
-                        <AlertCircle size={12} /> {errors.excaId}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={`field-group full-width ${errors.excaOperator ? 'error' : ''}`}>
-                    <label htmlFor="exca-operator">
-                      Nama Operator Excavator <span className="required">*</span>
-                    </label>
-                    <div className="field-input-wrap">
-                      <UserIcon size={18} className="field-icon" />
-                      <input
-                        id="exca-operator"
-                        type="text"
-                        placeholder="Nama lengkap operator"
-                        value={formData.excaOperator}
-                        onChange={(event) => handleChange('excaOperator', event.target.value)}
-                        className="field-input"
-                        maxLength={50}
-                      />
-                    </div>
-                    {errors.excaOperator && (
-                      <span className="field-error">
-                        <AlertCircle size={12} /> {errors.excaOperator}
-                      </span>
-                    )}
-                  </div>
+          <div className="form-section">
+            <div className="section-label">
+              <Camera size={18} />
+              <div>
+                <span>Foto Dokumentasi</span>
+                <small>Opsional, tetap tersedia bila perlu bukti lapangan.</small>
+              </div>
+              <span className="optional-badge">Opsional</span>
+            </div>
+            {!photoPreview ? (
+              <div className="photo-upload-area">
+                <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
+                  <div className="upload-icon-wrap"><ImageIcon size={30} /></div>
+                  <p className="upload-text">Klik untuk upload foto</p>
+                  <p className="upload-hint">JPG atau PNG, maksimal 5MB</p>
+                </div>
+                <button type="button" className="camera-btn" onClick={() => cameraInputRef.current?.click()}>
+                  <Camera size={20} />
+                  <span>Buka Kamera</span>
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden />
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} hidden />
+              </div>
+            ) : (
+              <div className="photo-preview-area">
+                <div className="preview-image-wrap">
+                  <img src={photoPreview} alt="Preview dokumentasi" className="preview-image" />
+                  <button type="button" className="remove-photo-btn" onClick={removePhoto}><X size={16} /></button>
                 </div>
               </div>
             )}
-
-            <div className="form-section">
-              <div className="section-label">
-                <Camera size={18} />
-                <div>
-                  <span>Foto Dokumentasi</span>
-                  <small>Opsional. Tambahkan bila perlu bukti visual kondisi truck.</small>
-                </div>
-                <span className="optional-badge">Opsional</span>
-              </div>
-
-              {!photoPreview ? (
-                <div className="photo-upload-area">
-                  <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
-                    <div className="upload-icon-wrap">
-                      <ImageIcon size={30} />
-                    </div>
-                    <p className="upload-text">Klik untuk upload foto</p>
-                    <p className="upload-hint">JPG atau PNG, maksimal 5MB</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="camera-btn"
-                    onClick={() => cameraInputRef.current?.click()}
-                  >
-                    <Camera size={20} />
-                    <span>Buka Kamera</span>
-                  </button>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    hidden
-                    id="photo-upload"
-                  />
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    hidden
-                    id="camera-capture"
-                  />
-                </div>
-              ) : (
-                <div className="photo-preview-area">
-                  <div className="preview-image-wrap">
-                    <img src={photoPreview} alt="Preview dokumentasi" className="preview-image" />
-                    <button type="button" className="remove-photo-btn" onClick={removePhoto}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                  <div className="preview-info">
-                    <CheckCircle size={14} className="preview-check" />
-                    <span>Foto berhasil dimuat</span>
-                  </div>
-                </div>
-              )}
-              {errors.photo && (
-                <span className="field-error">
-                  <AlertCircle size={12} /> {errors.photo}
-                </span>
-              )}
-            </div>
+            <FieldError message={errors.photo} />
           </div>
 
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => resetForm()}>
-              Reset Form
-            </button>
-            <button
-              type="submit"
-              className={`btn-primary ${isSubmitting ? 'loading' : ''}`}
-              disabled={isSubmitting}
-              id="submit-retase-btn"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={18} className="spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                <>
-                  <Upload size={18} />
-                  {buttonText}
-                </>
-              )}
+            <button type="button" className="btn-secondary" onClick={() => {
+              setFormData({ ...EMPTY_FORM, checkerPit: user?.name || user?.username || '' });
+              setPhotoPreview(null);
+              setErrors({});
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              if (cameraInputRef.current) cameraInputRef.current.value = '';
+            }}>Reset Form</button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 size={18} className="spin" /> Menyimpan...</> : <><Upload size={18} /> Simpan ke Log Retase</>}
             </button>
           </div>
         </form>
@@ -750,96 +385,48 @@ export default function InputRetasePage({ mode = null }) {
         <aside className="input-aside">
           <div className="helper-card surface-card">
             <div className="helper-card-header">
-              <span className="section-kicker">Ringkasan</span>
+              <span className="section-kicker">Ringkasan Workbook</span>
               <h3>Siap disimpan</h3>
             </div>
-            <div className="progress-track">
-              <div className="progress-value" style={{ width: `${completionPercent}%` }} />
-            </div>
+            <div className="progress-track"><div className="progress-value" style={{ width: `${completionPercent}%` }} /></div>
             <div className="summary-status">
               <strong>{completionPercent}% lengkap</strong>
-              <span>
-                {completedRequiredCount} dari {requiredOnly.length} isian wajib sudah terisi
-              </span>
+              <span>Form ini mengikuti urutan kolom utama pada file Excel.</span>
             </div>
-
             <div className="summary-list">
-              {requiredItems.map((item) => (
-                <div
-                  className={`summary-item ${item.done ? 'done' : 'pending'} ${
-                    item.optional ? 'optional' : ''
-                  }`}
-                  key={item.label}
-                >
+              {summaryItems.map(([label, value]) => (
+                <div className={`summary-item ${value && value !== '-' ? 'done' : 'pending'}`} key={label}>
                   <div>
-                    <span className="summary-label">{item.label}</span>
-                    <strong className="summary-value">{item.value}</strong>
+                    <span className="summary-label">{label}</span>
+                    <strong className="summary-value">{value || '-'}</strong>
                   </div>
-                  <span className="summary-flag">
-                    {item.done ? 'Siap' : item.optional ? 'Opsional' : 'Belum'}
-                  </span>
+                  <span className="summary-flag">{value && value !== '-' ? 'Siap' : 'Belum'}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="helper-card surface-card">
-            <div className="helper-card-header">
-              <span className="section-kicker">Bantuan Cepat</span>
-              <h3>Draft otomatis aktif</h3>
-            </div>
-            <p className="helper-card-copy">
-              Data teks disimpan sementara di perangkat ini sampai form berhasil disimpan atau Anda
-              melakukan reset.
-            </p>
-            <div className={`draft-state ${draftRecovered ? 'recovered' : ''}`}>
-              {draftRecovered ? 'Draft lama dipulihkan' : 'Autosave sedang aktif'}
-            </div>
-          </div>
-
-          {recentEntries.length > 0 && (
-            <div className="helper-card surface-card">
-              <div className="helper-card-header">
-                <span className="section-kicker">Saran Cepat</span>
-                <h3>Nomor polisi terakhir</h3>
-              </div>
-              <div className="recent-list">
-                {recentEntries.map((entry) => (
-                  <button
-                    key={entry.truckNumber}
-                    type="button"
-                    className="recent-chip"
-                    onClick={() => applyRecentEntry(entry)}
-                  >
-                    <strong>{entry.truckNumber}</strong>
-                    {entry.truckType && shouldShowTruckType && (
-                      <span>
-                        {TRUCK_TYPES.find((type) => type.value === entry.truckType)?.label || '-'}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="helper-card surface-card">
             <div className="helper-card-header">
               <span className="section-kicker">Checklist Kerja</span>
-              <h3>Urutan yang disarankan</h3>
+              <h3>Alur yang dipakai</h3>
             </div>
             <div className="helper-list">
-              {helperSteps.map((item, index) => (
-                <div className="helper-item" key={item.title}>
-                  <span className="helper-marker">{index + 1}</span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.detail}</span>
-                  </div>
-                </div>
-              ))}
+              <div className="helper-item"><span className="helper-marker">1</span><div><strong>Input retase dari checker pit</strong><span>Field utama mengikuti workbook Excel agar data log rapi.</span></div></div>
+              <div className="helper-item"><span className="helper-marker">2</span><div><strong>Verifikasi gate dilakukan terpisah</strong><span>Checker gate akan terisi otomatis setelah data disetujui.</span></div></div>
+              <div className="helper-item"><span className="helper-marker">3</span><div><strong>Data langsung masuk log dan rekap</strong><span>Riwayat dan rekap harian mengambil data dari struktur yang sama.</span></div></div>
             </div>
           </div>
+
+          {submitResult && !submitResult.success && (
+            <div className="helper-card surface-card">
+              <div className="helper-card-header">
+                <span className="section-kicker">Gagal Simpan</span>
+                <h3>Periksa input</h3>
+              </div>
+              <p className="helper-card-copy">{submitResult.message}</p>
+            </div>
+          )}
         </aside>
       </div>
     </div>

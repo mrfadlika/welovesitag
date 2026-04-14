@@ -79,6 +79,10 @@
   letter-spacing: -0.4px;
 }
 
+.input-header-info {
+  min-width: 0;
+}
+
 .input-header-info p {
   max-width: 48rem;
   margin: 0.6rem 0 0;
@@ -174,6 +178,49 @@
   gap: var(--space-md);
 }
 
+.workbook-sheet-card {
+  border-color: rgba(56, 189, 248, 0.18);
+  background:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.04), transparent 55%),
+    var(--color-bg-card);
+}
+
+.readonly-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.readonly-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 5.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+}
+
+.readonly-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.readonly-tile strong {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--color-text-primary);
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
 /* ========== FORM SECTION ========== */
 .form-section {
   padding: var(--space-xl);
@@ -252,6 +299,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  min-width: 0;
 }
 
 .field-group label {
@@ -270,11 +318,15 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-height: 3.5rem;
+  min-width: 0;
 }
 
 .field-icon {
   position: absolute;
+  top: 50%;
   left: 1rem;
+  transform: translateY(-50%);
   color: var(--color-text-muted);
   pointer-events: none;
   transition: color var(--transition-fast);
@@ -284,16 +336,23 @@
 .field-input {
   width: 100%;
   min-height: 3.5rem;
-  padding: 0.95rem 1.1rem 0.95rem 3rem;
+  height: 3.5rem;
+  padding: 0 1.1rem 0 3rem;
   background: var(--color-bg-input);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   font-size: 1rem;
+  line-height: 1.35;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
     background var(--transition-fast);
+}
+
+.field-input,
+.field-input::placeholder {
+  font-family: inherit;
 }
 
 .field-input::placeholder {
@@ -337,6 +396,12 @@
   font-size: 0.82rem;
   font-weight: 600;
   animation: fadeIn 150ms ease-out;
+}
+
+.inline-note {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 /* ========== TRUCK TYPE SELECTOR ========== */
@@ -696,6 +761,10 @@
   transition: border-color var(--transition-fast);
 }
 
+.summary-item > div {
+  min-width: 0;
+}
+
 .summary-item.done {
   border-color: rgba(34, 197, 94, 0.2);
   background: rgba(34, 197, 94, 0.03);
@@ -821,6 +890,10 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .readonly-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -830,6 +903,7 @@
     align-items: flex-start;
   }
 
+  .readonly-strip,
   .form-grid,
   .photo-upload-area {
     grid-template-columns: 1fr;
