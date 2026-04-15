@@ -5,6 +5,8 @@ import './index.css'
 import './components/MiningTheme.css'
 import App from './App.jsx'
 
+document.documentElement.dataset.appEnv = import.meta.env.PROD ? 'production' : 'development'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
