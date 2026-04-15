@@ -903,6 +903,25 @@
     align-items: flex-start;
   }
 
+  .role-indicator {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .form-section {
+    padding: var(--space-lg);
+  }
+
+  .section-label {
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .optional-badge {
+    margin-left: 0;
+  }
+
   .readonly-strip,
   .form-grid,
   .photo-upload-area {
@@ -911,6 +930,24 @@
 
   .truck-type-selector {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .readonly-tile {
+    min-height: auto;
+  }
+
+  .field-input {
+    font-size: 0.95rem;
+  }
+
+  .upload-zone,
+  .camera-btn {
+    min-height: auto;
+    padding: var(--space-lg);
+  }
+
+  .helper-card {
+    padding: 1rem;
   }
 
   .form-actions {
@@ -933,5 +970,24 @@
     right: var(--space-md);
     top: var(--space-md);
     max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .truck-type-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .readonly-label,
+  .summary-label {
+    letter-spacing: 0.06em;
+  }
+
+  .summary-item {
+    flex-direction: column;
+  }
+
+  .summary-flag {
+    width: fit-content;
   }
 }

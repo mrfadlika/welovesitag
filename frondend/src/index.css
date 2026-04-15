@@ -95,8 +95,7 @@
   --sidebar-width:     280px;
   --sidebar-collapsed: 76px;
   --header-height:     80px;
-  --content-max-width: 1440px;
-  --prod-layout-min-width: 1280px;
+  --content-max-width: 1380px;
 }
 
 /* === LIGHT THEME OVERRIDES === */
@@ -152,7 +151,7 @@
 }
 
 html {
-  font-size: 17.5px;
+  font-size: 15.75px;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -182,11 +181,6 @@ body::before {
 
 #root {
   min-height: 100vh;
-}
-
-html[data-app-env='production'] body,
-html[data-app-env='production'] #root {
-  min-width: var(--prod-layout-min-width);
 }
 
 /* ========== BASE ELEMENTS ========== */
@@ -356,6 +350,6 @@ textarea {
   }
 
   html {
-    font-size: 16.5px;
+    font-size: 15.75px;
   }
 }

@@ -504,8 +504,34 @@
     padding: var(--space-xl);
   }
 
+  .hero-chips {
+    gap: 0.55rem;
+  }
+
+  .dashboard-page .hero-chips .soft-badge {
+    max-width: 100%;
+  }
+
   .hero-copy h2 {
     font-size: 1.65rem;
+  }
+
+  .stat-card {
+    min-height: 10.5rem;
+  }
+
+  .stat-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stat-direction {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .stat-value {
+    font-size: 2rem;
   }
 
   .panel-header {
@@ -513,17 +539,78 @@
     gap: 0.6rem;
   }
 
+  .panel-note {
+    white-space: normal;
+  }
+
   .ratio-legend {
     grid-template-columns: 1fr;
+  }
+
+  .guide-item {
+    padding: 0.9rem 1rem;
   }
 }
 
 @media (max-width: 520px) {
+  .dashboard-page {
+    gap: var(--space-lg);
+  }
+
+  .dashboard-hero,
+  .ratio-panel,
+  .guide-panel {
+    padding: var(--space-lg);
+  }
+
+  .hero-copy h2 {
+    font-size: 1.45rem;
+  }
+
+  .hero-copy p {
+    font-size: 0.92rem;
+  }
+
+  .hero-chips {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .hero-chips .soft-badge {
+    justify-content: center;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
 
   .hero-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .hero-metric {
+    padding: 1rem 1.05rem;
+  }
+
+  .hero-metric strong {
+    font-size: 1.85rem;
+  }
+
+  .stat-card {
+    padding: var(--space-md);
+    min-height: auto;
+  }
+
+  .stat-label {
+    font-size: 0.84rem;
+  }
+
+  .guide-item {
+    gap: 0.8rem;
+  }
+
+  .guide-step {
+    width: 2rem;
+    height: 2rem;
   }
 }

@@ -5,6 +5,52 @@
   animation: fadeUp 250ms ease-out;
 }
 
+.manage-users-page .success-toast {
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  max-width: 26rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-accent-success-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(34, 197, 94, 0.12);
+  animation: slideInRight 280ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.manage-users-page .toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--color-accent-success-soft);
+  color: var(--color-accent-success);
+}
+
+.manage-users-page .toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.manage-users-page .toast-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-accent-success);
+}
+
+.manage-users-page .toast-message {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
 .manage-header {
   display: flex;
   align-items: center;
@@ -139,6 +185,12 @@
   box-shadow: var(--shadow-sm);
 }
 
+.users-cards {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
 .users-table {
   width: 100%;
   border-collapse: collapse;
@@ -242,6 +294,10 @@
   font-size: 0.75rem;
 }
 
+.text-muted {
+  color: var(--color-text-muted);
+}
+
 .btn-delete {
   width: 2.3rem;
   height: 2.3rem;
@@ -267,6 +323,71 @@
   filter: grayscale(1);
 }
 
+.user-card {
+  padding: var(--space-lg);
+}
+
+.user-card-top,
+.user-card-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.user-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.user-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  background: var(--color-bg-page-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.user-card-item span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.user-card-item strong {
+  color: var(--color-text-primary);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.user-card-item small {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+.user-card-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  justify-content: flex-end;
+}
+
+.user-card-delete {
+  width: auto;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 /* ========== MODAL ========== */
 .modal-overlay {
   position: fixed;
@@ -277,6 +398,7 @@
   display: grid;
   place-items: center;
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -284,9 +406,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   width: min(100%, 38rem);
+  max-height: calc(100vh - 3rem);
   box-shadow: var(--shadow-xl), 0 0 0 1px rgba(251, 179, 36, 0.1);
   animation: bounceIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  overflow: hidden;
+  overflow: auto;
 }
 
 .modal-header {
@@ -486,6 +609,52 @@
   .user-count-badge span { margin: 0; }
 
   .users-table-wrap {
-    overflow-x: auto;
+    display: none;
+  }
+
+  .users-cards {
+    display: flex;
+  }
+
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-header,
+  .modal-form {
+    padding: 1.15rem;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn-cancel,
+  .btn-submit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .manage-users-page .success-toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    top: var(--space-md);
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .user-card-top,
+  .user-card-footer {
+    flex-direction: column;
+  }
+
+  .user-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-card-delete {
+    width: 100%;
+    justify-content: center;
   }
 }

@@ -560,7 +560,9 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: min(85vw, 300px);
+    width: min(88vw, 320px);
+    height: 100vh;
+    height: 100svh;
     transform: translateX(-100%);
   }
 
@@ -582,7 +584,22 @@
   }
 
   .top-header {
-    padding: 0 var(--space-md);
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 0.35rem)
+      calc(var(--space-md) + env(safe-area-inset-right, 0px))
+      0
+      calc(var(--space-md) + env(safe-area-inset-left, 0px));
+    min-height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    gap: 0.75rem;
+  }
+
+  .header-left {
+    gap: 0.75rem;
+  }
+
+  .page-kicker {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
   }
 
   .header-title {
@@ -595,21 +612,54 @@
 
   .header-right {
     gap: 0.5rem;
+    align-self: flex-start;
   }
 
-  .header-control-btn span,
   .header-user-pill {
+    display: inline-flex;
+    min-height: 2.65rem;
+    padding: 0.3rem;
+    border-radius: 12px;
+  }
+
+  .header-user-copy {
     display: none;
   }
 
-  .header-control-btn {
-    width: 2.8rem;
-    justify-content: center;
-    padding-inline: 0;
+  .header-avatar {
+    width: 2rem;
+    height: 2rem;
   }
 
   .page-content {
-    padding: var(--space-lg) var(--space-md) var(--space-2xl);
+    padding:
+      var(--space-lg)
+      calc(var(--space-md) + env(safe-area-inset-right, 0px))
+      calc(var(--space-2xl) + env(safe-area-inset-bottom, 0px))
+      calc(var(--space-md) + env(safe-area-inset-left, 0px));
+  }
+
+  .sidebar-header {
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 0.15rem)
+      var(--space-md)
+      0;
+  }
+
+  .sidebar-nav {
+    padding: var(--space-md) var(--space-sm) calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sidebar-footer {
+    padding:
+      var(--space-sm)
+      var(--space-sm)
+      calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .logout-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .desktop-only {
@@ -619,5 +669,21 @@
   .mobile-only,
   .menu-toggle {
     display: inline-flex !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .top-header {
+    align-items: flex-start;
+  }
+
+  .header-title {
+    font-size: 1.05rem;
+  }
+
+  .menu-toggle,
+  .theme-toggle-btn,
+  .header-user-pill {
+    flex-shrink: 0;
   }
 }

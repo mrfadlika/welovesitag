@@ -15,6 +15,39 @@ import {
 import { userAPI } from '../../services/api';
 import './KelolaPenggunaPage.css';
 
+function formatRegisteredDate(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '-';
+  }
+
+  return parsedDate.toLocaleDateString('id-ID');
+}
+
+function formatRegisteredTime(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '-';
+  }
+
+  return parsedDate.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getUserArea(user) {
+  return user.role === 'checker' ? user.pitArea || '-' : 'Semua Area';
+}
+
 export default function KelolaPenggunaPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +67,7 @@ export default function KelolaPenggunaPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  async function fetchUsers() {
     setLoading(true);
     const result = await userAPI.getAll();
     if (result.success) {
@@ -48,7 +77,34 @@ export default function KelolaPenggunaPage() {
       setError(result.message);
     }
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUsersOnMount = async () => {
+      const result = await userAPI.getAll();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (result.success) {
+        setUsers(result.data);
+        setError(null);
+      } else {
+        setError(result.message);
+      }
+
+      setLoading(false);
+    };
+
+    loadUsersOnMount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -114,10 +170,10 @@ export default function KelolaPenggunaPage() {
     }
   };
 
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredUsers = users.filter((user) =>
+    [user.name, user.username, user.email, user.role === 'checker' ? user.pitArea : '']
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearchQuery))
   );
 
   return (
@@ -176,22 +232,28 @@ export default function KelolaPenggunaPage() {
           <p>{error}</p>
           <button className="btn-retry" onClick={fetchUsers}>Coba Lagi</button>
         </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="empty-state-panel">
+          <Users size={48} />
+          <h3>Tidak ada pengguna ditemukan</h3>
+          <p>Coba ubah kata kunci pencarian atau tambahkan akun baru.</p>
+        </div>
       ) : (
-        <div className="users-table-wrap">
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Nama & Username</th>
-                <th>Role</th>
-                <th>Email</th>
-                <th>Area Kerja</th>
-                <th>Terdaftar Pada</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map(u => (
+        <>
+          <div className="users-table-wrap">
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>Nama & Username</th>
+                  <th>Role</th>
+                  <th>Email</th>
+                  <th>Area Kerja</th>
+                  <th>Terdaftar Pada</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((u) => (
                   <tr key={u.id}>
                     <td>
                       <div className="user-cell-info">
@@ -205,7 +267,7 @@ export default function KelolaPenggunaPage() {
                         {getRoleLabel(u.role)}
                       </span>
                     </td>
-                    <td>{u.email}</td>
+                    <td>{u.email || '-'}</td>
                     <td>
                       {u.role === 'checker' ? (
                         <div className="area-info">
@@ -218,31 +280,74 @@ export default function KelolaPenggunaPage() {
                     </td>
                     <td>
                       <div className="date-info">
-                        <span>{new Date(u.createdAt).toLocaleDateString('id-ID')}</span>
-                        <small>{new Date(u.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</small>
+                        <span>{formatRegisteredDate(u.createdAt)}</span>
+                        <small>{formatRegisteredTime(u.createdAt)}</small>
                       </div>
                     </td>
                     <td>
                       <button 
                         className="btn-delete" 
                         onClick={() => handleDelete(u.id, u.name)}
-                        disabled={u.username === 'admin'} // Jangan hapus admin utama
+                        disabled={u.username === 'admin'}
                       >
                         <Trash2 size={18} />
                       </button>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="empty-table">
-                    Tidak ada pengguna yang ditemukan.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="users-cards">
+            {filteredUsers.map((u) => {
+              const isProtectedUser = u.username === 'admin';
+
+              return (
+                <article className="user-card surface-card" key={u.id}>
+                  <div className="user-card-top">
+                    <div className="user-cell-info">
+                      <strong>{u.name}</strong>
+                      <span>@{u.username}</span>
+                    </div>
+                    <span className={`role-badge ${u.role}`}>
+                      {getRoleIcon(u.role)}
+                      {getRoleLabel(u.role)}
+                    </span>
+                  </div>
+
+                  <div className="user-card-grid">
+                    <div className="user-card-item">
+                      <span>Email</span>
+                      <strong>{u.email || '-'}</strong>
+                    </div>
+                    <div className="user-card-item">
+                      <span>Area Kerja</span>
+                      <strong>{getUserArea(u)}</strong>
+                    </div>
+                    <div className="user-card-item">
+                      <span>Terdaftar</span>
+                      <strong>{formatRegisteredDate(u.createdAt)}</strong>
+                      <small>{formatRegisteredTime(u.createdAt)}</small>
+                    </div>
+                  </div>
+
+                  <div className="user-card-footer">
+                    <button 
+                      className="btn-delete user-card-delete" 
+                      onClick={() => handleDelete(u.id, u.name)}
+                      disabled={isProtectedUser}
+                      title={isProtectedUser ? 'Akun admin utama tidak dapat dihapus' : 'Hapus pengguna'}
+                    >
+                      <Trash2 size={18} />
+                      <span>{isProtectedUser ? 'Dilindungi' : 'Hapus'}</span>
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {showModal && (

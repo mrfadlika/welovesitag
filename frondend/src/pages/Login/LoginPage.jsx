@@ -95,14 +95,32 @@ export default function LoginPage() {
     const context = canvas.getContext('2d');
     let animationId;
     let particles = [];
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+
+    const getParticleCount = () => {
+      if (prefersReducedMotion) {
+        return 0;
+      }
+
+      if (window.innerWidth <= 640) {
+        return 18;
+      }
+
+      if (window.innerWidth <= 920) {
+        return 28;
+      }
+
+      return 60;
+    };
 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      particles = Array.from({ length: getParticleCount() }, () => new Particle(canvas, context));
     };
 
     resize();
-    particles = Array.from({ length: 60 }, () => new Particle(canvas, context));
 
     const animate = () => {
       context.clearRect(0, 0, canvas.width, canvas.height);
@@ -143,7 +161,10 @@ export default function LoginPage() {
 
     animate();
     window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', handleMouseMove);
+
+    if (!coarsePointer && !prefersReducedMotion) {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
 
     return () => {
       cancelAnimationFrame(animationId);
@@ -247,11 +268,20 @@ export default function LoginPage() {
             <div className="login-form-header">
               <div className="mobile-brand">
                 <img src={logo} alt="SITAG Logo" className="mobile-logo-img" />
-                <span className="brand-si">SI</span>
-                <span className="brand-tag">TAG</span>
+                <div className="mobile-brand-copy">
+                  <div>
+                    <span className="brand-si">SI</span>
+                    <span className="brand-tag">TAG</span>
+                  </div>
+                  <span className="mobile-brand-meta">Retase tambang digital</span>
+                </div>
               </div>
               <h2>Selamat Datang Kembali</h2>
               <p>Autentikasi diperlukan untuk melanjutkan akses dashboard</p>
+              <div className="login-mobile-quicknote">
+                <span className="soft-badge">Akses cepat mobile</span>
+                <span className="soft-badge alt">3 peran pengguna</span>
+              </div>
             </div>
 
             <form className="login-form" onSubmit={handleSubmit} id="login-form">

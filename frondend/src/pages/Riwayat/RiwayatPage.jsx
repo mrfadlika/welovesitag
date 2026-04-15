@@ -7,6 +7,7 @@ import {
   Eye,
   Filter,
   Loader2,
+  RefreshCw,
   Search,
   X,
 } from 'lucide-react';
@@ -35,15 +36,32 @@ function StatusBadge({ status }) {
   );
 }
 
+function getStatusLabel(status) {
+  if (status === 'verified') {
+    return 'Verified';
+  }
+
+  if (status === 'rejected') {
+    return 'Ditolak';
+  }
+
+  return 'Menunggu Gate';
+}
+
 export default function RiwayatPage() {
   const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    startDate: '',
+    endDate: '',
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshSeed, setRefreshSeed] = useState(0);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -67,29 +85,66 @@ export default function RiwayatPage() {
     };
 
     fetchHistory();
-  }, []);
+  }, [refreshSeed]);
 
   const filteredData = useMemo(() => {
-    const keyword = searchQuery.toLowerCase();
+    const keyword = searchQuery.trim().toLowerCase();
+    const startTimestamp = dateRange.startDate
+      ? new Date(`${dateRange.startDate}T00:00:00`).getTime()
+      : null;
+    const endTimestamp = dateRange.endDate
+      ? new Date(`${dateRange.endDate}T23:59:59.999`).getTime()
+      : null;
 
     return records.filter((item) => {
+      const matchDate =
+        (!startTimestamp || item.timestamp >= startTimestamp) &&
+        (!endTimestamp || item.timestamp <= endTimestamp);
+
       const matchSearch =
         !keyword ||
         item.id.toLowerCase().includes(keyword) ||
+        item.date.toLowerCase().includes(keyword) ||
+        item.time.toLowerCase().includes(keyword) ||
+        item.day.toLowerCase().includes(keyword) ||
         item.truckNumber.toLowerCase().includes(keyword) ||
+        item.truckTypeLabel.toLowerCase().includes(keyword) ||
         item.materialType.toLowerCase().includes(keyword) ||
         item.locationOwner.toLowerCase().includes(keyword) ||
         item.heavyEquipment.toLowerCase().includes(keyword) ||
         item.contractor.toLowerCase().includes(keyword) ||
         item.checkerPit.toLowerCase().includes(keyword) ||
-        item.checkerGate.toLowerCase().includes(keyword);
+        item.checkerGate.toLowerCase().includes(keyword) ||
+        getStatusLabel(item.status).toLowerCase().includes(keyword);
 
       const matchType = filterType === 'all' || item.truckType === filterType;
       const matchStatus = filterStatus === 'all' || item.status === filterStatus;
 
-      return matchSearch && matchType && matchStatus;
+      return matchDate && matchSearch && matchType && matchStatus;
     });
-  }, [filterStatus, filterType, records, searchQuery]);
+  }, [dateRange.endDate, dateRange.startDate, filterStatus, filterType, records, searchQuery]);
+
+  const activeFilterCount = useMemo(
+    () =>
+      [
+        filterType !== 'all',
+        filterStatus !== 'all',
+        Boolean(dateRange.startDate),
+        Boolean(dateRange.endDate),
+      ].filter(Boolean).length,
+    [dateRange.endDate, dateRange.startDate, filterStatus, filterType]
+  );
+
+  const hasActiveFilters = activeFilterCount > 0;
+
+  const handleClearFilters = () => {
+    setFilterType('all');
+    setFilterStatus('all');
+    setDateRange({
+      startDate: '',
+      endDate: '',
+    });
+  };
 
   const summary = useMemo(() => {
     const verified = filteredData.filter((item) => item.status === 'verified').length;
@@ -129,17 +184,33 @@ export default function RiwayatPage() {
             className="search-input"
           />
           {searchQuery && (
-            <button className="search-clear" onClick={() => setSearchQuery('')}>
+            <button className="search-clear" type="button" onClick={() => setSearchQuery('')}>
               <X size={16} />
             </button>
           )}
         </div>
 
-        <button className={`filter-toggle ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters((value) => !value)}>
-          <Filter size={16} />
-          Filter
-          <ChevronDown size={14} style={{ transform: showFilters ? 'rotate(180deg)' : 'none' }} />
-        </button>
+        <div className="riwayat-toolbar-actions">
+          <button
+            className={`filter-toggle ${showFilters ? 'active' : ''}`}
+            type="button"
+            onClick={() => setShowFilters((value) => !value)}
+          >
+            <Filter size={16} />
+            Filter
+            {activeFilterCount > 0 && <span className="filter-count">{activeFilterCount}</span>}
+            <ChevronDown size={14} style={{ transform: showFilters ? 'rotate(180deg)' : 'none' }} />
+          </button>
+
+          <button
+            className="filter-toggle"
+            type="button"
+            onClick={() => setRefreshSeed((value) => value + 1)}
+          >
+            {isLoading ? <Loader2 size={16} className="spinner" /> : <RefreshCw size={16} />}
+            Refresh
+          </button>
+        </div>
       </div>
 
       {showFilters && (
@@ -147,9 +218,20 @@ export default function RiwayatPage() {
           <div className="filter-group">
             <label>Jenis Truk</label>
             <div className="filter-chips">
-              <button className={`chip ${filterType === 'all' ? 'active' : ''}`} onClick={() => setFilterType('all')}>Semua</button>
+              <button
+                className={`chip ${filterType === 'all' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setFilterType('all')}
+              >
+                Semua
+              </button>
               {TRUCK_TYPE_OPTIONS.map((type) => (
-                <button key={type.value} className={`chip ${filterType === type.value ? 'active' : ''}`} onClick={() => setFilterType(type.value)}>
+                <button
+                  key={type.value}
+                  className={`chip ${filterType === type.value ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setFilterType(type.value)}
+                >
                   {type.label}
                 </button>
               ))}
@@ -159,12 +241,51 @@ export default function RiwayatPage() {
             <label>Status</label>
             <div className="filter-chips">
               {LOG_STATUS_OPTIONS.map((option) => (
-                <button key={option.value} className={`chip ${filterStatus === option.value ? 'active' : ''}`} onClick={() => setFilterStatus(option.value)}>
+                <button
+                  key={option.value}
+                  className={`chip ${filterStatus === option.value ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setFilterStatus(option.value)}
+                >
                   {option.label}
                 </button>
               ))}
             </div>
           </div>
+
+          <div className="filter-group filter-group-date">
+            <label>Rentang Tanggal</label>
+            <div className="filter-date-grid">
+              <input
+                type="date"
+                className="filter-date-input"
+                value={dateRange.startDate}
+                onChange={(event) =>
+                  setDateRange((previous) => ({
+                    ...previous,
+                    startDate: event.target.value,
+                  }))
+                }
+              />
+              <input
+                type="date"
+                className="filter-date-input"
+                value={dateRange.endDate}
+                onChange={(event) =>
+                  setDateRange((previous) => ({
+                    ...previous,
+                    endDate: event.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <button className="clear-filters" type="button" onClick={handleClearFilters}>
+              Reset Filter
+            </button>
+          )}
         </div>
       )}
 
@@ -177,6 +298,14 @@ export default function RiwayatPage() {
           </article>
         ))}
       </section>
+
+      <div className="riwayat-note surface-card">
+        <strong>Tampilan riwayat disamakan dengan fitur lain:</strong>
+        <span>
+          Gunakan pencarian, filter, dan rentang tanggal untuk mempersempit log. Data
+          ditampilkan dalam bentuk kartu agar nyaman di semua ukuran layar tanpa perlu geser ke samping.
+        </span>
+      </div>
 
       <div className="riwayat-data">
         {isLoading ? (
@@ -246,21 +375,61 @@ export default function RiwayatPage() {
 
             <div className="riwayat-cards">
               {filteredData.map((item) => (
-                <div className="riwayat-card workbook-log-card" key={item.id} onClick={() => setSelectedRecord(item)}>
-                  <div className="card-top">
-                    <span className="cell-id">{item.id}</span>
+                <article
+                  className="riwayat-card surface-card"
+                  key={item.id}
+                  onClick={() => setSelectedRecord(item)}
+                >
+                  <div className="riwayat-card-header">
+                    <div className="riwayat-card-identity">
+                      <div className="riwayat-truck-icon">
+                        <span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span>
+                      </div>
+                      <div className="riwayat-card-title">
+                        <strong className="cell-truck-number">{item.truckNumber}</strong>
+                        <p>{item.id} • {item.materialType}</p>
+                      </div>
+                    </div>
                     <StatusBadge status={item.status} />
                   </div>
-                  <div className="card-main">
-                    <strong className="cell-truck-number">{item.truckNumber}</strong>
-                    <span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span>
-                    <p>{item.materialType} • {item.locationOwner}</p>
+
+                  <div className="riwayat-card-grid">
+                    <div className="riwayat-card-item">
+                      <span>Lokasi / Pemilik</span>
+                      <strong>{item.locationOwner}</strong>
+                    </div>
+                    <div className="riwayat-card-item">
+                      <span>Kontraktor</span>
+                      <strong>{item.contractor}</strong>
+                    </div>
+                    <div className="riwayat-card-item">
+                      <span>Alat Berat</span>
+                      <strong>{item.heavyEquipment}</strong>
+                    </div>
+                    <div className="riwayat-card-item">
+                      <span>Checker Pit</span>
+                      <strong>{item.checkerPit}</strong>
+                    </div>
                   </div>
-                  <div className="card-meta">
-                    <span>{item.date} {item.time}</span>
-                    <span>{item.checkerPit}</span>
+
+                  <div className="riwayat-card-footer">
+                    <div className="riwayat-card-meta">
+                      <span className="riwayat-meta-date">{item.date} • {item.time}</span>
+                      {item.checkerGate && <span className="riwayat-meta-gate">Gate: {item.checkerGate}</span>}
+                    </div>
+                    <button
+                      className="riwayat-card-action"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedRecord(item);
+                      }}
+                    >
+                      <Eye size={16} />
+                      <span>Detail</span>
+                    </button>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </>
