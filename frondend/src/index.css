@@ -151,10 +151,12 @@
 }
 
 html {
-  font-size: 17.5px;
+  font-size: clamp(15px, 0.2vw + 14.6px, 16.5px);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -343,6 +345,13 @@ textarea {
 }
 
 /* ========== RESPONSIVE ========== */
+@media (max-width: 1200px) {
+  :root {
+    --sidebar-width: 248px;
+    --content-max-width: 1200px;
+  }
+}
+
 @media (max-width: 768px) {
   :root {
     --sidebar-width: 100%;
@@ -350,6 +359,6 @@ textarea {
   }
 
   html {
-    font-size: 16.5px;
+    font-size: 15px;
   }
 }
