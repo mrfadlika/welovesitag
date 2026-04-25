@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   app:
     build: .
@@ -7,9 +9,8 @@ services:
       - "3000:3000"
     volumes:
       - ./backend/data:/app/backend/data
-    environment:
-      - DATABASE_URL=file:./data/dev.db
-      - PORT=3000
+    env_file:
+      - .env
 
   tunnel:
     image: cloudflare/cloudflared:latest
