@@ -5,6 +5,14 @@ const { serializeCheckout } = require('../utils/serializers');
 const { getRetaseRates } = require('../utils/settings');
 
 const router = express.Router();
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_REKAP_PERIOD = 'daily';
+const REKAP_PERIOD_LABELS = {
+  daily: 'Harian',
+  weekly: 'Mingguan',
+  monthly: 'Bulanan',
+};
+const VALID_REKAP_PERIODS = new Set(Object.keys(REKAP_PERIOD_LABELS));
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -48,10 +56,36 @@ function normalizeTruckTypeLabel(value, label) {
   return normalizeText(value) || 'Lainnya';
 }
 
-function formatDateKey(value) {
+function normalizeRekapPeriod(value) {
+  const period = normalizeText(value).toLowerCase();
+
+  return VALID_REKAP_PERIODS.has(period) ? period : DEFAULT_REKAP_PERIOD;
+}
+
+function padTwoDigits(value) {
+  return String(value).padStart(2, '0');
+}
+
+function toUtcDateOnly(value) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addUtcDays(value, days) {
+  const nextDate = new Date(value);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+  return nextDate;
+}
+
+function formatDateKey(value) {
+  const date = toUtcDateOnly(value);
+
+  if (!date) {
     return null;
   }
 
@@ -59,7 +93,99 @@ function formatDateKey(value) {
 }
 
 function formatDayName(value) {
-  return new Date(value).toLocaleDateString('id-ID', { weekday: 'long' });
+  return new Date(value).toLocaleDateString('id-ID', { weekday: 'long', timeZone: 'UTC' });
+}
+
+function formatShortDate(value) {
+  return new Date(value).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatMonthName(value) {
+  return new Date(value).toLocaleDateString('id-ID', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatDateRangeLabel(startDate, endDate) {
+  const startLabel = formatShortDate(startDate);
+  const endLabel = formatShortDate(endDate);
+
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`;
+}
+
+function getStartOfUtcWeek(value) {
+  const date = toUtcDateOnly(value);
+  const dayIndex = date.getUTCDay();
+  const daysFromMonday = (dayIndex + 6) % 7;
+
+  return addUtcDays(date, -daysFromMonday);
+}
+
+function getIsoWeekInfo(value) {
+  const date = toUtcDateOnly(value);
+  const target = new Date(date);
+  const dayNumber = target.getUTCDay() || 7;
+
+  target.setUTCDate(target.getUTCDate() + 4 - dayNumber);
+
+  const weekYear = target.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(weekYear, 0, 1));
+  const weekNumber = Math.ceil((((target - yearStart) / MILLISECONDS_PER_DAY) + 1) / 7);
+
+  return { weekYear, weekNumber };
+}
+
+function buildPeriodInfo(value, period) {
+  const date = toUtcDateOnly(value);
+
+  if (!date) {
+    return null;
+  }
+
+  if (period === 'weekly') {
+    const startDate = getStartOfUtcWeek(date);
+    const endDate = addUtcDays(startDate, 6);
+    const { weekYear, weekNumber } = getIsoWeekInfo(date);
+
+    return {
+      key: `${weekYear}-W${padTwoDigits(weekNumber)}`,
+      day: `Minggu ${padTwoDigits(weekNumber)}`,
+      date: startDate,
+      startDate,
+      endDate,
+      periodLabel: formatDateRangeLabel(startDate, endDate),
+    };
+  }
+
+  if (period === 'monthly') {
+    const startDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+    const endDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+
+    return {
+      key: `${date.getUTCFullYear()}-${padTwoDigits(date.getUTCMonth() + 1)}`,
+      day: formatMonthName(startDate),
+      date: startDate,
+      startDate,
+      endDate,
+      periodLabel: formatDateRangeLabel(startDate, endDate),
+    };
+  }
+
+  return {
+    key: formatDateKey(date),
+    day: formatDayName(date),
+    date,
+    startDate: date,
+    endDate: date,
+    periodLabel: formatDateRangeLabel(date, date),
+  };
 }
 
 router.get('/', async (req, res, next) => {
@@ -92,7 +218,15 @@ router.get('/', async (req, res, next) => {
 
 router.get('/rekap', async (req, res, next) => {
   try {
-    const { locationOwner, contractor, status = 'verified', startDate, endDate } = req.query;
+    const {
+      locationOwner,
+      contractor,
+      status = 'verified',
+      startDate,
+      endDate,
+      period,
+    } = req.query;
+    const rekapPeriod = normalizeRekapPeriod(period);
     const where = {};
 
     if (status && status !== 'all') {
@@ -128,17 +262,21 @@ router.get('/rekap', async (req, res, next) => {
     const groupedRows = new Map();
 
     checkouts.forEach((checkout) => {
-      const dateKey = formatDateKey(checkout.createdAt);
+      const periodInfo = buildPeriodInfo(checkout.createdAt, rekapPeriod);
 
-      if (!dateKey) {
+      if (!periodInfo) {
         return;
       }
 
-      if (!groupedRows.has(dateKey)) {
-        groupedRows.set(dateKey, {
-          key: dateKey,
-          day: formatDayName(checkout.createdAt),
-          date: checkout.createdAt,
+      if (!groupedRows.has(periodInfo.key)) {
+        groupedRows.set(periodInfo.key, {
+          key: periodInfo.key,
+          period: rekapPeriod,
+          day: periodInfo.day,
+          date: periodInfo.date,
+          startDate: periodInfo.startDate,
+          endDate: periodInfo.endDate,
+          periodLabel: periodInfo.periodLabel,
           checkerPitSet: new Set(),
           checkerGateSet: new Set(),
           fusoCount: 0,
@@ -147,7 +285,7 @@ router.get('/rekap', async (req, res, next) => {
         });
       }
 
-      const currentRow = groupedRows.get(dateKey);
+      const currentRow = groupedRows.get(periodInfo.key);
       const truckType = normalizeTruckTypeValue(checkout.truckType, checkout.truckTypeLabel);
 
       if (truckType === 'fuso') {
@@ -176,8 +314,13 @@ router.get('/rekap', async (req, res, next) => {
       cumulativePrice += totalPrice;
 
       return {
+        period: row.period,
+        periodKey: row.key,
         day: row.day,
         date: row.date,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        periodLabel: row.periodLabel,
         checkerPit: Array.from(row.checkerPitSet).join(', ') || '-',
         checkerGate: Array.from(row.checkerGateSet).join(', ') || '-',
         fusoCount: row.fusoCount,
@@ -197,6 +340,11 @@ router.get('/rekap', async (req, res, next) => {
         meta: {
           locationOwner: locationOwner || 'Semua lokasi',
           contractor: contractor || 'Semua kontraktor',
+          period: rekapPeriod,
+          periodLabel: REKAP_PERIOD_LABELS[rekapPeriod],
+          startDate: startDate || null,
+          endDate: endDate || null,
+          rateLocked: true,
           rates,
         },
       },
@@ -283,7 +431,7 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message:
-          'No. polisi, jenis material, lokasi/pemilik, alat berat, jenis truk, dan checker pit wajib diisi',
+          'No. polisi, jenis material, lokasi, alat berat, jenis truk, dan checker pit wajib diisi',
       });
     }
 

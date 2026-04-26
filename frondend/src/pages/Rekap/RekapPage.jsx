@@ -1,30 +1,71 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  CheckCircle2,
   ClipboardList,
   Filter,
   Loader2,
   RefreshCw,
-  Save,
   Wallet,
   FileDown,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
-import { checkoutAPI, settingsAPI } from '../../services/api';
-import { CONTRACTOR_OPTIONS, DEFAULT_RETASE_RATES, LOCATION_OPTIONS } from '../../data/retaseOptions';
-import { formatCurrency, formatNumber } from '../../utils/retase';
+import { checkoutAPI } from '../../services/api';
+import { CONTRACTOR_OPTIONS, LOCATION_OPTIONS } from '../../data/retaseOptions';
+import { formatCurrency } from '../../utils/retase';
 import './RekapPage.css';
 
-function createRateForm(rates = DEFAULT_RETASE_RATES) {
-  return {
-    fuso: String(rates?.fuso ?? DEFAULT_RETASE_RATES.fuso),
-    dyna: String(rates?.dyna ?? DEFAULT_RETASE_RATES.dyna),
-  };
+const DEFAULT_REKAP_PERIOD = 'daily';
+const REKAP_PERIOD_OPTIONS = [
+  {
+    value: 'daily',
+    label: 'Harian',
+    rowLabel: 'Hari',
+    dateLabel: 'Tanggal',
+    summaryLabel: 'Hari',
+    note: 'Satu baris untuk setiap tanggal.',
+  },
+  {
+    value: 'weekly',
+    label: 'Mingguan',
+    rowLabel: 'Minggu',
+    dateLabel: 'Rentang Tanggal',
+    summaryLabel: 'Minggu',
+    note: 'Satu baris per minggu Senin-Minggu.',
+  },
+  {
+    value: 'monthly',
+    label: 'Bulanan',
+    rowLabel: 'Bulan',
+    dateLabel: 'Rentang Tanggal',
+    summaryLabel: 'Bulan',
+    note: 'Satu baris per bulan kalender.',
+  },
+];
+
+function getPeriodOption(period) {
+  return REKAP_PERIOD_OPTIONS.find((option) => option.value === period) || REKAP_PERIOD_OPTIONS[0];
 }
 
-function sanitizeRateInput(value) {
-  return String(value || '').replace(/\D/g, '');
+function isActiveRekapFilter([key, value]) {
+  if (key === 'period') {
+    return Boolean(value && value !== DEFAULT_REKAP_PERIOD);
+  }
+
+  return Boolean(value);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => {
+    const entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+
+    return entities[character];
+  });
 }
 
 function formatDisplayDate(value) {
@@ -37,7 +78,7 @@ function formatDisplayDate(value) {
     return String(value);
   }
 
-  return parsedDate.toLocaleDateString('id-ID');
+  return parsedDate.toLocaleDateString('id-ID', { timeZone: 'UTC' });
 }
 
 function formatDateFilterLabel(value) {
@@ -45,7 +86,7 @@ function formatDateFilterLabel(value) {
     return null;
   }
 
-  const parsedDate = new Date(`${value}T00:00:00`);
+  const parsedDate = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(parsedDate.getTime())) {
     return value;
   }
@@ -54,7 +95,23 @@ function formatDateFilterLabel(value) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   });
+}
+
+function formatDateRangeDisplay(startDate, endDate) {
+  const startLabel = formatDisplayDate(startDate);
+  const endLabel = formatDisplayDate(endDate);
+
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`;
+}
+
+function getRowDateLabel(row, period) {
+  if (period === DEFAULT_REKAP_PERIOD) {
+    return formatDisplayDate(row.date);
+  }
+
+  return row.periodLabel || formatDateRangeDisplay(row.startDate || row.date, row.endDate || row.date);
 }
 
 export default function RekapPage() {
@@ -63,16 +120,14 @@ export default function RekapPage() {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [filters, setFilters] = useState({
+    period: DEFAULT_REKAP_PERIOD,
     locationOwner: '',
     contractor: '',
     startDate: '',
     endDate: '',
   });
-  const [rateForm, setRateForm] = useState(() => createRateForm(DEFAULT_RETASE_RATES));
   const [isLoading, setIsLoading] = useState(true);
-  const [isSavingRates, setIsSavingRates] = useState(false);
   const [error, setError] = useState(null);
-  const [saveMessage, setSaveMessage] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
 
   useEffect(() => {
@@ -91,7 +146,6 @@ export default function RekapPage() {
         const nextMeta = result.data?.meta || null;
         setRows(result.data?.rows || []);
         setMeta(nextMeta);
-        setRateForm(createRateForm(nextMeta?.rates || DEFAULT_RETASE_RATES));
       } catch (fetchError) {
         setError(`Gagal memuat data: ${fetchError.message}`);
       } finally {
@@ -102,6 +156,10 @@ export default function RekapPage() {
     fetchRekap();
   }, [filters, refreshSeed]);
 
+  const periodOption = useMemo(() => getPeriodOption(filters.period), [filters.period]);
+  const periodColumnLabel = periodOption.rowLabel;
+  const dateColumnLabel = periodOption.dateLabel;
+
   const summary = useMemo(() => {
     const totalFuso = rows.reduce((sum, row) => sum + row.fusoCount, 0);
     const totalDyna = rows.reduce((sum, row) => sum + row.dynaCount, 0);
@@ -109,9 +167,13 @@ export default function RekapPage() {
     const totalPrice = rows.reduce((sum, row) => sum + row.totalPrice, 0);
 
     return [
-      { label: 'Hari Terekap', value: rows.length, note: 'Jumlah baris rekap harian' },
-      { label: 'Retase Fuso', value: totalFuso, note: 'Mengikuti tarif aktif' },
-      { label: 'Retase Dyna', value: totalDyna, note: 'Mengikuti tarif aktif' },
+      {
+        label: `${periodOption.summaryLabel} Terekap`,
+        value: rows.length,
+        note: `Jumlah baris rekap ${periodOption.label.toLowerCase()}`,
+      },
+      { label: 'Retase Fuso', value: totalFuso, note: 'Mengikuti parameter harga tetap' },
+      { label: 'Retase Dyna', value: totalDyna, note: 'Mengikuti parameter harga tetap' },
       {
         label: 'Total Harga',
         value: formatCurrency(totalPrice),
@@ -121,7 +183,7 @@ export default function RekapPage() {
             : 'Semua harga terakumulasi',
       },
     ];
-  }, [rows]);
+  }, [periodOption.label, periodOption.summaryLabel, rows]);
 
   const totals = useMemo(
     () => ({
@@ -135,13 +197,13 @@ export default function RekapPage() {
   );
 
   const activeFilterCount = useMemo(
-    () => Object.values(filters).filter((value) => Boolean(value)).length,
+    () => Object.entries(filters).filter(isActiveRekapFilter).length,
     [filters]
   );
 
   const hasActiveFilters = activeFilterCount > 0;
 
-  const periodLabel = useMemo(() => {
+  const dateRangeLabel = useMemo(() => {
     const startLabel = formatDateFilterLabel(filters.startDate);
     const endLabel = formatDateFilterLabel(filters.endDate);
 
@@ -162,6 +224,7 @@ export default function RekapPage() {
 
   const handleClearFilters = () => {
     setFilters({
+      period: DEFAULT_REKAP_PERIOD,
       locationOwner: '',
       contractor: '',
       startDate: '',
@@ -169,62 +232,15 @@ export default function RekapPage() {
     });
   };
 
-  const handleSaveRates = async (event) => {
-    event.preventDefault();
-    setIsSavingRates(true);
-    setSaveMessage(null);
-
-    try {
-      const payload = {
-        fuso: Number.parseInt(rateForm.fuso || '0', 10),
-        dyna: Number.parseInt(rateForm.dyna || '0', 10),
-      };
-
-      const result = await settingsAPI.updateRates({
-        fuso: payload.fuso,
-        dyna: payload.dyna,
-      });
-
-      if (!result.success) {
-        setSaveMessage({
-          tone: 'error',
-          text: result.message || 'Gagal menyimpan tarif',
-        });
-        return;
-      }
-
-      setMeta((previous) => ({
-        ...(previous || {}),
-        rates: result.data || DEFAULT_RETASE_RATES,
-      }));
-      setRateForm(createRateForm(result.data || DEFAULT_RETASE_RATES));
-
-      const refreshedRekap = await checkoutAPI.getRekap(filters);
-      if (refreshedRekap.success) {
-        setRows(refreshedRekap.data?.rows || []);
-        setMeta(refreshedRekap.data?.meta || null);
-      }
-
-      setSaveMessage({
-        tone: 'success',
-        text: 'Tarif retase berhasil diperbarui.',
-      });
-    } catch (saveError) {
-      setSaveMessage({
-        tone: 'error',
-        text: `Terjadi kesalahan: ${saveError.message}`,
-      });
-    } finally {
-      setIsSavingRates(false);
-      setTimeout(() => setSaveMessage(null), 3000);
-    }
-  };
-
   const handleExportExcel = () => {
-    // Creating manual HTML table for Excel compatibility
+    if (!isAdmin || rows.length === 0) {
+      return;
+    }
+
+    // Creating manual HTML table for Excel compatibility.
     const header = [
-      'Hari',
-      'Tanggal',
+      periodColumnLabel,
+      dateColumnLabel,
       'Checker Pit',
       'Checker Gate',
       'Retase Fuso',
@@ -235,7 +251,7 @@ export default function RekapPage() {
       'Cumulative Harga',
     ];
 
-    const totals = {
+    const exportTotals = {
       fusoCount: rows.reduce((sum, r) => sum + r.fusoCount, 0),
       dynaCount: rows.reduce((sum, r) => sum + r.dynaCount, 0),
       fusoPrice: rows.reduce((sum, r) => sum + r.fusoPrice, 0),
@@ -243,11 +259,18 @@ export default function RekapPage() {
       totalPrice: rows.reduce((sum, r) => sum + r.totalPrice, 0),
     };
 
-    let tableHtml = `
+    const tableHtml = `
+      <h2>Rekap Retase ${escapeHtml(periodOption.label)}</h2>
+      <p>
+        Mode: ${escapeHtml(periodOption.label)} |
+        Periode: ${escapeHtml(dateRangeLabel)} |
+        Lokasi: ${escapeHtml(meta?.locationOwner || 'Semua lokasi')} |
+        Kontraktor: ${escapeHtml(meta?.contractor || 'Semua kontraktor')}
+      </p>
       <table border="1">
         <thead>
           <tr style="background-color: #fbb324; color: #000; font-weight: bold;">
-            ${header.map((h) => `<th>${h}</th>`).join('')}
+            ${header.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -255,27 +278,27 @@ export default function RekapPage() {
             .map(
               (row) => `
             <tr>
-              <td>${row.day}</td>
-              <td>${formatDisplayDate(row.date)}</td>
-              <td>${row.checkerPit}</td>
-              <td>${row.checkerGate}</td>
+              <td>${escapeHtml(row.day)}</td>
+              <td>${escapeHtml(getRowDateLabel(row, filters.period))}</td>
+              <td>${escapeHtml(row.checkerPit)}</td>
+              <td>${escapeHtml(row.checkerGate)}</td>
               <td>${row.fusoCount}</td>
               <td>${row.dynaCount}</td>
-              <td>${formatCurrency(row.fusoPrice)}</td>
-              <td>${formatCurrency(row.dynaPrice)}</td>
-              <td>${formatCurrency(row.totalPrice)}</td>
-              <td>${formatCurrency(row.cumulativePrice)}</td>
+              <td>${escapeHtml(formatCurrency(row.fusoPrice))}</td>
+              <td>${escapeHtml(formatCurrency(row.dynaPrice))}</td>
+              <td>${escapeHtml(formatCurrency(row.totalPrice))}</td>
+              <td>${escapeHtml(formatCurrency(row.cumulativePrice))}</td>
             </tr>
           `
             )
             .join('')}
           <tr style="background-color: #f3f4f6; font-weight: bold;">
             <td colspan="4" style="text-align: right;">TOTAL:</td>
-            <td>${totals.fusoCount}</td>
-            <td>${totals.dynaCount}</td>
-            <td>${formatCurrency(totals.fusoPrice)}</td>
-            <td>${formatCurrency(totals.dynaPrice)}</td>
-            <td>${formatCurrency(totals.totalPrice)}</td>
+            <td>${exportTotals.fusoCount}</td>
+            <td>${exportTotals.dynaCount}</td>
+            <td>${escapeHtml(formatCurrency(exportTotals.fusoPrice))}</td>
+            <td>${escapeHtml(formatCurrency(exportTotals.dynaPrice))}</td>
+            <td>${escapeHtml(formatCurrency(exportTotals.totalPrice))}</td>
             <td>-</td>
           </tr>
         </tbody>
@@ -289,11 +312,11 @@ export default function RekapPage() {
       </html>
     `;
 
-    const blob = new Blob([template], { type: 'application/vnd.ms-excel' });
+    const blob = new Blob(['\ufeff', template], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Rekap_Retase_${new Date().toISOString().split('T')[0]}.xls`;
+    link.download = `Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.xls`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -305,15 +328,17 @@ export default function RekapPage() {
           <span className="section-kicker">Sheet Rekap</span>
           <h2>Rekap Data Retase</h2>
           <p>
-            Tabel ini mengikuti workbook: Hari, Tanggal, Checker Pit, Checker Gate,
+            Tabel ini bisa dibaca harian, mingguan, atau bulanan dan tetap mengikuti workbook: Periode, Tanggal, Checker Pit, Checker Gate,
             Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.
           </p>
           <div className="rekap-hero-actions">
             {isAdmin && (
               <button
                 className="rekap-export-btn"
+                type="button"
                 onClick={handleExportExcel}
-                title="Unduh Laporan ke Excel"
+                disabled={isLoading || rows.length === 0}
+                title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh rekap ${periodOption.label.toLowerCase()} ke Excel`}
               >
                 <FileDown size={18} />
                 <span>Ekspor ke Excel</span>
@@ -331,7 +356,7 @@ export default function RekapPage() {
         </div>
         <div className="rekap-hero-badge">
           <strong>{rows.length}</strong>
-          <span>Baris rekap</span>
+          <span>Baris {periodOption.label.toLowerCase()}</span>
         </div>
       </section>
 
@@ -343,6 +368,28 @@ export default function RekapPage() {
             {activeFilterCount > 0 && <span className="soft-badge">{activeFilterCount} aktif</span>}
           </div>
           <div className="rekap-filter-grid">
+            <div className="rekap-field-group">
+              <label htmlFor="rekap-period">Mode Rekap</label>
+              <select
+                id="rekap-period"
+                className="rekap-field-input rekap-field-select"
+                value={filters.period}
+                onChange={(event) =>
+                  setFilters((previous) => ({
+                    ...previous,
+                    period: event.target.value,
+                  }))
+                }
+              >
+                {REKAP_PERIOD_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="rekap-rate-preview">{periodOption.note}</span>
+            </div>
+
             <div className="rekap-field-group">
               <label htmlFor="rekap-location">Lokasi / Pemilik</label>
               <select
@@ -426,7 +473,7 @@ export default function RekapPage() {
 
           <div className="rekap-inline-actions">
             <span className="rekap-filter-note">
-              Periode: <strong>{periodLabel}</strong>
+              Mode: <strong>{periodOption.label}</strong> | Rentang tanggal: <strong>{dateRangeLabel}</strong>
             </span>
             {hasActiveFilters && (
               <button className="rekap-clear-btn" type="button" onClick={handleClearFilters}>
@@ -444,97 +491,48 @@ export default function RekapPage() {
                 Kontraktor: <strong>{meta.contractor}</strong>
               </span>
               <span>
-                Tarif Fuso: <strong>{formatCurrency(meta.rates?.fuso)}</strong>
+                Mode: <strong>{meta.periodLabel || periodOption.label}</strong>
               </span>
               <span>
-                Tarif Dyna: <strong>{formatCurrency(meta.rates?.dyna)}</strong>
+                Harga Fuso: <strong>{formatCurrency(meta.rates?.fuso)}</strong>
               </span>
               <span>
-                Periode: <strong>{periodLabel}</strong>
+                Harga Dyna: <strong>{formatCurrency(meta.rates?.dyna)}</strong>
+              </span>
+              <span>
+                Rentang tanggal: <strong>{dateRangeLabel}</strong>
               </span>
             </div>
           )}
         </div>
 
-        {isAdmin && (
-          <form className="rekap-rates-panel surface-card" onSubmit={handleSaveRates}>
-            <div className="rekap-filter-header">
-              <Wallet size={16} />
-              <strong>Tarif Retase</strong>
+        <section className="rekap-rates-panel surface-card">
+          <div className="rekap-filter-header">
+            <Wallet size={16} />
+            <strong>Parameter Harga</strong>
+            <span className="soft-badge">Terkunci</span>
+          </div>
+
+          <div className="rekap-rates-grid">
+            <div className="rekap-rate-lock-card">
+              <span>Harga Fuso</span>
+              <strong>{formatCurrency(meta?.rates?.fuso)}</strong>
+              <small>Parameter tetap sistem</small>
             </div>
 
-            <div className="rekap-rates-grid">
-              <div className="rekap-field-group">
-                <label htmlFor="rate-fuso">Tarif Fuso</label>
-                <input
-                  id="rate-fuso"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  className="rekap-field-input"
-                  value={rateForm.fuso ? formatNumber(rateForm.fuso) : ''}
-                  onChange={(event) =>
-                    setRateForm((previous) => ({
-                      ...previous,
-                      fuso: sanitizeRateInput(event.target.value),
-                    }))
-                  }
-                  placeholder="0"
-                />
-                <span className="rekap-rate-preview">
-                  {formatCurrency(rateForm.fuso)}
-                </span>
-              </div>
-
-              <div className="rekap-field-group">
-                <label htmlFor="rate-dyna">Tarif Dyna</label>
-                <input
-                  id="rate-dyna"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  className="rekap-field-input"
-                  value={rateForm.dyna ? formatNumber(rateForm.dyna) : ''}
-                  onChange={(event) =>
-                    setRateForm((previous) => ({
-                      ...previous,
-                      dyna: sanitizeRateInput(event.target.value),
-                    }))
-                  }
-                  placeholder="0"
-                />
-                <span className="rekap-rate-preview">
-                  {formatCurrency(rateForm.dyna)}
-                </span>
-              </div>
+            <div className="rekap-rate-lock-card">
+              <span>Harga Dyna</span>
+              <strong>{formatCurrency(meta?.rates?.dyna)}</strong>
+              <small>Parameter tetap sistem</small>
             </div>
+          </div>
 
-            <div className="rekap-rates-footer">
-              <span className="rekap-rates-note">
-                Perubahan tarif langsung memengaruhi dashboard dan perhitungan rekap.
-              </span>
-              <button className="rekap-save-btn" type="submit" disabled={isSavingRates}>
-                {isSavingRates ? (
-                  <>
-                    <Loader2 size={16} className="spinner" /> Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} /> Simpan Tarif
-                  </>
-                )}
-              </button>
-            </div>
-
-            {saveMessage && (
-              <div className={`rekap-save-message ${saveMessage.tone}`}>
-                {saveMessage.tone === 'success' && <CheckCircle2 size={16} />}
-                {saveMessage.tone === 'error' && <AlertCircle size={16} />}
-                <span>{saveMessage.text}</span>
-              </div>
-            )}
-          </form>
-        )}
+          <div className="rekap-rates-footer">
+            <span className="rekap-rates-note">
+              Harga retase dikunci dari aplikasi dan dipakai otomatis untuk dashboard, rekap, dan ekspor.
+            </span>
+          </div>
+        </section>
       </div>
 
       <section className="summary-grid">
@@ -550,7 +548,7 @@ export default function RekapPage() {
       <div className="rekap-note surface-card">
         <strong>Tampilan rekap mengikuti pola fitur lain:</strong>
         <span>
-          Gunakan filter untuk mempersempit data. Data ditampilkan dalam bentuk kartu
+          Pilih mode harian, mingguan, atau bulanan lalu gunakan filter untuk mempersempit data. Data ditampilkan dalam bentuk kartu
           agar nyaman di semua ukuran layar tanpa perlu geser ke samping.
         </span>
       </div>
@@ -579,8 +577,8 @@ export default function RekapPage() {
             <table className="rekap-table">
               <thead>
                 <tr>
-                  <th>Hari</th>
-                  <th>Tanggal</th>
+                  <th>{periodColumnLabel}</th>
+                  <th>{dateColumnLabel}</th>
                   <th>Checker Pit</th>
                   <th>Checker Gate</th>
                   <th>Retase Fuso</th>
@@ -595,7 +593,7 @@ export default function RekapPage() {
                 {rows.map((row, index) => (
                   <tr key={`${row.day}-${row.date}-${index}`}>
                     <td>{row.day}</td>
-                    <td>{formatDisplayDate(row.date)}</td>
+                    <td>{getRowDateLabel(row, filters.period)}</td>
                     <td>{row.checkerPit}</td>
                     <td>{row.checkerGate}</td>
                     <td>{row.fusoCount}</td>
@@ -625,10 +623,12 @@ export default function RekapPage() {
               <article className="rekap-card surface-card" key={`${row.day}-${row.date}-${index}`}>
                 <div className="rekap-card-header">
                   <div className="rekap-card-identity">
-                    <div className="rekap-day-badge">{row.day}</div>
+                    <div className={`rekap-day-badge ${filters.period !== DEFAULT_REKAP_PERIOD ? 'rekap-day-badge--wide' : ''}`}>
+                      {row.day}
+                    </div>
                     <div className="rekap-card-title">
-                      <strong>{formatDisplayDate(row.date)}</strong>
-                      <p>Checker: {row.checkerPit} → {row.checkerGate}</p>
+                      <strong>{getRowDateLabel(row, filters.period)}</strong>
+                      <p>Checker: {row.checkerPit} -&gt; {row.checkerGate}</p>
                     </div>
                   </div>
                   <div className="rekap-price-badge">

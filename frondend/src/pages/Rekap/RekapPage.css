@@ -96,6 +96,19 @@
   box-shadow: 0 8px 24px rgba(251, 179, 36, 0.15);
 }
 
+.rekap-export-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.rekap-export-btn:disabled:hover {
+  background: var(--color-bg-page-alt);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
 .rekap-export-btn svg {
   color: var(--color-accent-primary);
 }
@@ -242,6 +255,38 @@
   color: var(--color-text-muted);
   font-size: 0.8rem;
   line-height: 1.35;
+}
+
+.rekap-rate-lock-card {
+  padding: 0.95rem 1rem;
+  background: var(--color-bg-page-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.rekap-rate-lock-card span,
+.rekap-rate-lock-card small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.rekap-rate-lock-card strong {
+  display: block;
+  margin: 0.35rem 0;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.25px;
+}
+
+.rekap-rate-lock-card small {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .rekap-field-select {
@@ -439,6 +484,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   flex-shrink: 0;
+}
+
+.rekap-day-badge--wide {
+  min-width: 5.8rem;
 }
 
 .rekap-card-title {

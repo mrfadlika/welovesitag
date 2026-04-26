@@ -1,44 +1,68 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
-const { getRetaseRates, upsertRetaseRates } = require('../utils/settings');
+const {
+  addPitLocationOption,
+  getPitLocationOptions,
+  getRetaseRates,
+} = require('../utils/settings');
 
 const router = express.Router();
 
 router.get('/rates', async (req, res, next) => {
   try {
-    const rates = await getRetaseRates(prisma);
+    const rates = await getRetaseRates();
 
     return res.status(200).json({
       success: true,
-      data: rates,
+      data: {
+        ...rates,
+        locked: true,
+      },
     });
   } catch (error) {
     return next(error);
   }
 });
 
-router.patch('/rates', async (req, res, next) => {
+router.patch('/rates', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Harga retase adalah parameter tetap dan tidak bisa diubah dari aplikasi',
+  });
+});
+
+router.get('/pit-locations', async (req, res, next) => {
   try {
-    const { fuso, dyna } = req.body;
-    const parsedFuso = Number.parseInt(fuso, 10);
-    const parsedDyna = Number.parseInt(dyna, 10);
-
-    if (!Number.isFinite(parsedFuso) || parsedFuso < 0 || !Number.isFinite(parsedDyna) || parsedDyna < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tarif Fuso dan Dyna harus berupa angka 0 atau lebih',
-      });
-    }
-
-    const rates = await upsertRetaseRates(prisma, {
-      fuso: parsedFuso,
-      dyna: parsedDyna,
-    });
+    const options = await getPitLocationOptions(prisma);
 
     return res.status(200).json({
       success: true,
-      message: 'Tarif retase berhasil diperbarui',
-      data: rates,
+      data: options,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/pit-locations', async (req, res, next) => {
+  try {
+    const { label, createdByRole } = req.body;
+
+    if (createdByRole !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Lokasi / pemilik pit baru hanya dapat ditambahkan administrator',
+      });
+    }
+
+    const options = await addPitLocationOption(prisma, label);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lokasi / pemilik pit berhasil disimpan',
+      data: {
+        options,
+      },
     });
   } catch (error) {
     return next(error);

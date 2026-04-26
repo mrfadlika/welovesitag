@@ -135,8 +135,8 @@ export default function DashboardPage() {
         'Saat staff pos menyetujui, checker gate akan terisi otomatis dan baris itu masuk ke rekap.',
     },
     {
-      title: 'Tarif rekap sekarang dinamis',
-      detail: `Fuso dihitung ${formatCurrency(rates.fuso)} dan Dyna ${formatCurrency(rates.dyna)}. Jika admin mengubah tarif, dashboard ikut menyesuaikan.`,
+      title: 'Harga rekap dikunci sebagai parameter',
+      detail: `Fuso dihitung ${formatCurrency(rates.fuso)} dan Dyna ${formatCurrency(rates.dyna)}. Harga ini tidak bisa diubah dari aplikasi.`,
     },
   ];
 
@@ -199,7 +199,7 @@ export default function DashboardPage() {
               <span className="section-kicker">Preview Rekap</span>
               <h3 className="panel-title">Baris rekap terbaru</h3>
             </div>
-            <span className="panel-note">Tarif aktif mengikuti setting admin</span>
+            <span className="panel-note">Harga mengikuti parameter tetap sistem</span>
           </div>
 
           {rekapPreview.length > 0 ? (

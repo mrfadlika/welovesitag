@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const { PrismaClient } = require('@prisma/client');
-const { DEFAULT_RETASE_RATES, RETASE_RATE_KEYS } = require('../utils/settings');
 
 const prisma = new PrismaClient();
 
@@ -261,29 +260,8 @@ async function seedTrucksAndCheckouts() {
   });
 }
 
-async function seedSettings() {
-  await prisma.appSetting.upsert({
-    where: { key: RETASE_RATE_KEYS.fuso },
-    update: { value: String(DEFAULT_RETASE_RATES.fuso) },
-    create: {
-      key: RETASE_RATE_KEYS.fuso,
-      value: String(DEFAULT_RETASE_RATES.fuso),
-    },
-  });
-
-  await prisma.appSetting.upsert({
-    where: { key: RETASE_RATE_KEYS.dyna },
-    update: { value: String(DEFAULT_RETASE_RATES.dyna) },
-    create: {
-      key: RETASE_RATE_KEYS.dyna,
-      value: String(DEFAULT_RETASE_RATES.dyna),
-    },
-  });
-}
-
 async function main() {
   await seedUsers();
-  await seedSettings();
   await seedTrucksAndCheckouts();
 }
 

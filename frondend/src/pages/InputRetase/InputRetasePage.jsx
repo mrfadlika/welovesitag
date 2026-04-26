@@ -162,7 +162,7 @@ export default function InputRetasePage() {
     const nextErrors = {};
     const requiredFields = [
       ['materialType', !formData.materialType, 'Pilih jenis material'],
-      ['locationOwner', !formData.locationOwner, 'Pilih lokasi / pemilik'],
+      ['locationOwner', !formData.locationOwner, 'Pilih lokasi'],
       ['heavyEquipment', !formData.heavyEquipment, 'Pilih alat berat'],
       ['truckType', !formData.truckType, 'Pilih jenis truk'],
       ['contractor', !formData.contractor, 'Pilih kontraktor'],
@@ -178,7 +178,7 @@ export default function InputRetasePage() {
       nextErrors.materialCustom = 'Isi jenis material lainnya';
     }
     if (isCustomOption(formData.locationOwner) && !formData.locationCustom.trim()) {
-      nextErrors.locationCustom = 'Isi lokasi / pemilik lainnya';
+      nextErrors.locationCustom = 'Isi lokasi lainnya';
     }
     if (isCustomOption(formData.heavyEquipment) && !formData.heavyEquipmentCustom.trim()) {
       nextErrors.heavyEquipmentCustom = 'Isi alat berat lainnya';
@@ -244,7 +244,7 @@ export default function InputRetasePage() {
 
   const summaryItems = [
     ['Jenis Material', resolvedSubmission.materialType || getOptionLabel(MATERIAL_OPTIONS, formData.materialType)],
-    ['Lokasi / Pemilik', resolvedSubmission.locationOwner || getOptionLabel(LOCATION_OPTIONS, formData.locationOwner)],
+    ['Lokasi', resolvedSubmission.locationOwner || getOptionLabel(LOCATION_OPTIONS, formData.locationOwner)],
     ['Alat Berat', resolvedSubmission.heavyEquipment || getOptionLabel(HEAVY_EQUIPMENT_OPTIONS, formData.heavyEquipment)],
     ['Jenis Truk', resolvedSubmission.truckTypeLabel || getOptionLabel(TRUCK_TYPE_OPTIONS, formData.truckType)],
     ['No Polisi', formData.truckNumber || '-'],
@@ -312,9 +312,9 @@ export default function InputRetasePage() {
             </div>
             <div className="form-grid">
               <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={MATERIAL_OPTIONS} error={errors.materialType} />
-              <SelectGroup id="locationOwner" label="Lokasi / Pemilik" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={LOCATION_OPTIONS} error={errors.locationOwner} />
+              <SelectGroup id="locationOwner" label="Lokasi" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={LOCATION_OPTIONS} error={errors.locationOwner} />
               {isCustomOption(formData.materialType) && <InputGroup id="materialCustom" label="Jenis Material Lainnya" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialCustom} onChange={(event) => setField('materialCustom', event.target.value)} placeholder="Tulis material lain" error={errors.materialCustom} />}
-              {isCustomOption(formData.locationOwner) && <InputGroup id="locationCustom" label="Lokasi / Pemilik Lainnya" icon={<MapPin size={18} className="field-icon" />} value={formData.locationCustom} onChange={(event) => setField('locationCustom', event.target.value)} placeholder="Tulis lokasi lain" error={errors.locationCustom} />}
+              {isCustomOption(formData.locationOwner) && <InputGroup id="locationCustom" label="Lokasi Lainnya" icon={<MapPin size={18} className="field-icon" />} value={formData.locationCustom} onChange={(event) => setField('locationCustom', event.target.value)} placeholder="Tulis lokasi lain" error={errors.locationCustom} />}
               <SelectGroup id="heavyEquipment" label="Alat Berat" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipment} onChange={(event) => setField('heavyEquipment', event.target.value)} options={HEAVY_EQUIPMENT_OPTIONS} error={errors.heavyEquipment} />
               <SelectGroup id="contractor" label="Kontraktor" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractor} onChange={(event) => setField('contractor', event.target.value)} options={CONTRACTOR_OPTIONS} error={errors.contractor} />
               {isCustomOption(formData.heavyEquipment) && <InputGroup id="heavyEquipmentCustom" label="Alat Berat Lainnya" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipmentCustom} onChange={(event) => setField('heavyEquipmentCustom', event.target.value)} placeholder="Tulis alat berat lain" error={errors.heavyEquipmentCustom} />}

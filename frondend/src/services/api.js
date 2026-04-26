@@ -3,7 +3,34 @@
  * Centralized API client for all backend calls
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_URL;
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window === 'undefined') {
+    return '/api';
+  }
+
+  const { protocol, hostname, port } = window.location;
+
+  // Vite dev uses a proxy for `/api`, and the backend can also serve the built app
+  // directly from port 3000. Other local ports like Apache/XAMPP should talk to the
+  // backend explicitly.
+  if (port === '5173' || port === '3000') {
+    return '/api';
+  }
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${protocol}//${hostname}:3000/api`;
+  }
+
+  return '/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 // ============ AUTH ENDPOINTS ============
 export const authAPI = {
@@ -146,36 +173,35 @@ export const settingsAPI = {
     const response = await fetch(`${API_BASE_URL}/settings/rates`);
     return handleResponse(response);
   },
-
-  updateRates: async (rates) => {
-    const response = await fetch(`${API_BASE_URL}/settings/rates`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rates),
-    });
-    return handleResponse(response);
-  },
 };
 
 // ============ RESPONSE HANDLER ============
 async function handleResponse(response) {
   try {
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    const rawBody = await response.text();
+    const data = contentType.includes('application/json') && rawBody
+      ? JSON.parse(rawBody)
+      : null;
 
     if (!response.ok) {
+      const fallbackMessage = rawBody && !data
+        ? rawBody.slice(0, 200)
+        : `Error ${response.status}`;
+
       return {
         success: false,
-        message: data.message || `Error ${response.status}`,
-        error: data.error,
+        message: data?.message || fallbackMessage,
+        error: data?.error,
         status: response.status,
       };
     }
 
     return {
       success: true,
-      data: data.data,
-      message: data.message,
-      count: data.count,
+      data: data?.data,
+      message: data?.message,
+      count: data?.count,
     };
   } catch (error) {
     return {
