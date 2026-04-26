@@ -1,9 +1,9 @@
 # Build stage for frontend
 FROM node:20-alpine AS frontend-builder
-WORKDIR /app/frondend
-COPY frondend/package*.json ./
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
 RUN npm install
-COPY frondend/ ./
+COPY frontend/ ./
 RUN npm run build
 
 # Stage for backend
@@ -18,7 +18,7 @@ RUN cd backend && npm install
 COPY backend/ ./backend/
 
 # Copy frontend build results
-COPY --from=frontend-builder /app/frondend/dist ./frondend/dist
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Setup Prisma and database directory
 WORKDIR /app/backend

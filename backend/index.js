@@ -17,7 +17,7 @@ const settingsRoutes = require('./routes/settings');
 const app = express();
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || '0.0.0.0';
-const frontendDistPath = path.resolve(__dirname, '../frondend/dist');
+const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 const hasFrontendBuild = fs.existsSync(frontendIndexPath);
 
