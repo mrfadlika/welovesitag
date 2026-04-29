@@ -632,6 +632,104 @@
   overflow-wrap: anywhere;
 }
 
+/* ========== VERIFY BUTTONS ========== */
+.riwayat-page .verify-buttons-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.riwayat-page .verify-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-page-alt);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.riwayat-page .verify-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.riwayat-page .verify-btn.approve:hover:not(:disabled) {
+  background: var(--color-accent-success-soft);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--color-accent-success);
+  transform: scale(1.05);
+}
+
+.riwayat-page .verify-btn.reject:hover:not(:disabled) {
+  background: var(--color-accent-danger-soft);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--color-accent-danger);
+  transform: scale(1.05);
+}
+
+/* ========== RESULT TOAST ========== */
+.riwayat-page .result-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 999;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.2rem 1.5rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 300ms ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.riwayat-page .result-toast.success {
+  background: rgba(34, 197, 94, 0.95);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  color: white;
+}
+
+.riwayat-page .result-toast.warning {
+  background: rgba(251, 179, 36, 0.95);
+  border: 1px solid rgba(251, 179, 36, 0.5);
+  color: white;
+}
+
+.riwayat-page .result-toast.error {
+  background: rgba(239, 68, 68, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: white;
+}
+
+.riwayat-page .toast-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.riwayat-page .toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.riwayat-page .toast-message {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 /* ========== SPINNER ========== */
 .riwayat-page .spinner {
   animation: rotateSlow 0.9s linear infinite;

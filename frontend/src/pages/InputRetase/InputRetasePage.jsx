@@ -294,23 +294,6 @@ export default function InputRetasePage() {
     { label: 'Checker Pit', value: resolvedSubmission.checkerPit || '-' },
     { label: 'Checker Gate', value: 'Otomatis saat verifikasi' },
   ];
-  const workflowSteps = [
-    {
-      step: '01',
-      focus: 'Input retase dari checker pit',
-      detail: 'Field utama mengikuti workbook Excel agar data log tetap rapi.',
-    },
-    {
-      step: '02',
-      focus: 'Verifikasi gate dilakukan terpisah',
-      detail: 'Checker gate akan terisi otomatis setelah data disetujui.',
-    },
-    {
-      step: '03',
-      focus: 'Data langsung masuk log dan rekap',
-      detail: 'Riwayat dan rekap harian mengambil data dari struktur yang sama.',
-    },
-  ];
 
   const completionPercent = Math.round(
     (summaryItems.filter((item) => item.value && item.value !== '-').length / summaryItems.length) * 100
@@ -482,33 +465,6 @@ export default function InputRetasePage() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="helper-card surface-card">
-            <div className="helper-card-header">
-              <span className="section-kicker">Checklist Kerja</span>
-              <h3>Alur yang dipakai</h3>
-            </div>
-            <div className="data-table-wrap helper-table-wrap">
-              <table className="data-table helper-table">
-                <thead>
-                  <tr>
-                    <th className="table-head-center">Tahap</th>
-                    <th>Fokus</th>
-                    <th>Keterangan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workflowSteps.map((item) => (
-                    <tr key={item.step}>
-                      <td data-label="Tahap" className="table-code table-cell-center">{item.step}</td>
-                      <td data-label="Fokus" className="table-primary">{item.focus}</td>
-                      <td data-label="Keterangan">{item.detail}</td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>

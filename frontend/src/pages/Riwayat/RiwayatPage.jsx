@@ -9,8 +9,11 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  ShieldCheck,
   X,
+  XCircle,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
 import { LOG_STATUS_OPTIONS, TRUCK_TYPE_OPTIONS } from '../../data/retaseOptions';
@@ -50,6 +53,7 @@ function getStatusLabel(status) {
 }
 
 export default function RiwayatPage() {
+  const { user } = useAuth();
   const initialViewState = useMemo(
     () => ({
       searchQuery: '',
@@ -73,6 +77,8 @@ export default function RiwayatPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
+  const [verifyingId, setVerifyingId] = useState(null);
+  const [verifyResult, setVerifyResult] = useState(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -160,6 +166,42 @@ export default function RiwayatPage() {
     }));
   };
 
+  const updateRecordStatus = (recordId) => {
+    setRecords((previous) => previous.filter((item) => item.id !== recordId));
+  };
+
+  const handleVerification = async (recordId, approved) => {
+    setVerifyingId(recordId);
+
+    try {
+      const result = await checkoutAPI.verify(recordId, user?.name || user?.username, approved);
+
+      if (!result.success) {
+        setVerifyResult({
+          tone: 'error',
+          message: result.message || 'Gagal memproses verifikasi gate',
+        });
+        return;
+      }
+
+      setVerifyResult({
+        tone: approved ? 'success' : 'warning',
+        message: approved
+          ? 'Data retase berhasil diverifikasi gate.'
+          : 'Data retase ditolak dan dikeluarkan dari antrean.',
+      });
+      updateRecordStatus(recordId);
+    } catch (verifyError) {
+      setVerifyResult({
+        tone: 'error',
+        message: `Terjadi kesalahan: ${verifyError.message}`,
+      });
+    } finally {
+      setVerifyingId(null);
+      setTimeout(() => setVerifyResult(null), 3000);
+    }
+  };
+
   const summary = useMemo(() => {
     const verified = filteredData.filter((item) => item.status === 'verified').length;
     const pending = filteredData.filter((item) => item.status === 'ready_for_exit').length;
@@ -175,6 +217,19 @@ export default function RiwayatPage() {
 
   return (
     <div className="riwayat-page" id="riwayat-page">
+      {verifyResult && (
+        <div className={`result-toast ${verifyResult.tone}`} role="alert">
+          <div className="toast-icon">
+            {verifyResult.tone === 'success' && <CheckCircle2 size={22} />}
+            {verifyResult.tone === 'warning' && <AlertCircle size={22} />}
+            {verifyResult.tone === 'error' && <AlertCircle size={22} />}
+          </div>
+          <div className="toast-content">
+            <span className="toast-message">{verifyResult.message}</span>
+          </div>
+        </div>
+      )}
+
       <section className="riwayat-hero surface-card surface-card--accent">
         <div>
           <span className="section-kicker">Log Real-Time</span>
@@ -416,9 +471,40 @@ export default function RiwayatPage() {
                     <td data-label="Checker Gate">{item.checkerGate}</td>
                     <td data-label="Status" className="table-cell-center"><StatusBadge status={item.status} /></td>
                     <td data-label="Aksi" className="table-cell-center">
-                      <button type="button" className="view-btn" onClick={() => setSelectedRecord(item)}>
-                        <Eye size={16} />
-                      </button>
+                      {item.status === 'ready_for_exit' ? (
+                        <div className="verify-buttons-group">
+                          <button
+                            type="button"
+                            className="verify-btn approve"
+                            onClick={() => handleVerification(item.id, true)}
+                            disabled={verifyingId === item.id}
+                            title="Setujui dan verifikasi"
+                          >
+                            {verifyingId === item.id ? (
+                              <Loader2 size={16} className="spinner" />
+                            ) : (
+                              <ShieldCheck size={16} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="verify-btn reject"
+                            onClick={() => handleVerification(item.id, false)}
+                            disabled={verifyingId === item.id}
+                            title="Tolak"
+                          >
+                            {verifyingId === item.id ? (
+                              <Loader2 size={16} className="spinner" />
+                            ) : (
+                              <XCircle size={16} />
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" className="view-btn" onClick={() => setSelectedRecord(item)}>
+                          <Eye size={16} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
