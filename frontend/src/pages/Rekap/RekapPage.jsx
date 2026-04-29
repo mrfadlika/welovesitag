@@ -356,11 +356,7 @@ export default function RekapPage() {
       'Checker Pit',
       'Checker Gate',
       'Fuso',
-      'Dyna',
-      'Harga Fuso',
-      'Harga Dyna',
-      'Total Harga',
-      'Cumulative'
+      'Dyna'
     ]];
 
     const tableBody = rows.map((row) => [
@@ -461,6 +457,7 @@ export default function RekapPage() {
             Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.
           </p>
           <div className="rekap-hero-actions">
+            {isAdmin && (
               <>
                 <button
                   className="rekap-export-btn"
@@ -483,6 +480,7 @@ export default function RekapPage() {
                   <span>Ekspor Nota (PDF)</span>
                 </button>
               </>
+            )}
             <button
               className="rekap-secondary-btn"
               type="button"
