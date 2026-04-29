@@ -240,10 +240,6 @@ export default function InputRetasePage() {
         id: result.data?.id || '-',
         message: 'Data retase berhasil masuk ke log real-time.',
       });
-      setFormData((previous) => ({
-        ...previous,
-        truckNumber: '',
-      }));
       setPhotoFile(null);
       setPhotoPreview(null);
       setErrors({});

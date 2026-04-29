@@ -113,6 +113,17 @@
   color: var(--color-accent-primary);
 }
 
+.rekap-export-btn--pdf:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.15);
+}
+
+.rekap-export-btn--pdf svg {
+  color: #ef4444;
+}
+
 .rekap-secondary-btn,
 .rekap-clear-btn {
   display: inline-flex;

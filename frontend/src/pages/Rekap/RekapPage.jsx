@@ -7,7 +7,10 @@ import {
   RefreshCw,
   Wallet,
   FileDown,
+  FileText,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
@@ -318,6 +321,146 @@ export default function RekapPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    if (!isAdmin || rows.length === 0) {
+      return;
+    }
+
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape A4
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Judul Utama
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text('NOTA REKAPITULASI RETASE', pageWidth / 2, 15, { align: 'center' });
+
+    // Garis Pemisah
+    doc.setLineWidth(0.5);
+    doc.line(14, 18, pageWidth - 14, 18);
+
+    // Informasi Metadata
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Mode Rekap: ${periodOption.label}`, 14, 25);
+    doc.text(`Periode: ${dateRangeLabel}`, 14, 30);
+    doc.text(`Lokasi: ${meta?.locationOwner || 'Semua lokasi'}`, 14, 35);
+    doc.text(`Kontraktor: ${meta?.contractor || 'Semua kontraktor'}`, 14, 40);
+
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, pageWidth - 14, 25, { align: 'right' });
+    doc.text(`Oleh: ${user?.name || 'Admin'}`, pageWidth - 14, 30, { align: 'right' });
+
+    // Tabel Data
+    const tableHeader = [[
+      periodColumnLabel,
+      dateColumnLabel,
+      'Checker Pit',
+      'Checker Gate',
+      'Fuso',
+      'Dyna',
+      'Harga Fuso',
+      'Harga Dyna',
+      'Total Harga',
+      'Cumulative'
+    ]];
+
+    const tableBody = rows.map((row) => [
+      row.day,
+      getRowDateLabel(row, filters.period),
+      row.checkerPit,
+      row.checkerGate,
+      row.fusoCount,
+      row.dynaCount,
+      formatCurrency(row.fusoPrice),
+      formatCurrency(row.dynaPrice),
+      formatCurrency(row.totalPrice),
+      formatCurrency(row.cumulativePrice)
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: tableHeader,
+      body: tableBody,
+      foot: [[
+        'TOTAL KESELURUHAN',
+        '',
+        '',
+        '',
+        totals.fusoCount,
+        totals.dynaCount,
+        formatCurrency(totals.fusoPrice),
+        formatCurrency(totals.dynaPrice),
+        formatCurrency(totals.totalPrice),
+        '-'
+      ]],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [241, 196, 15], // Kuning SITAG
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      footStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'center' },
+        1: { halign: 'center' },
+        4: { halign: 'center' },
+        5: { halign: 'center' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' },
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2
+      },
+      margin: { top: 45 }
+    });
+
+    // Bagian Tanda Tangan
+    let finalY = doc.lastAutoTable.finalY + 25;
+
+    // Jika mepet ke bawah, tambah halaman baru
+    if (finalY + 40 > doc.internal.pageSize.getHeight()) {
+      doc.addPage();
+      finalY = 20;
+    }
+
+    const signatureBoxWidth = 50;
+    const signatureSpacing = (pageWidth - (3 * signatureBoxWidth)) / 4;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+
+    // Tanda Tangan 1: Pembuat
+    doc.text('Dibuat Oleh,', signatureSpacing + (signatureBoxWidth / 2), finalY, { align: 'center' });
+    doc.line(signatureSpacing, finalY + 20, signatureSpacing + signatureBoxWidth, finalY + 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Admin / Checker', signatureSpacing + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
+
+    // Tanda Tangan 2: Diperiksa
+    doc.setFont('helvetica', 'bold');
+    doc.text('Diperiksa Oleh,', (signatureSpacing * 2) + signatureBoxWidth + (signatureBoxWidth / 2), finalY, { align: 'center' });
+    doc.line((signatureSpacing * 2) + signatureBoxWidth, finalY + 20, (signatureSpacing * 2) + (signatureBoxWidth * 2), finalY + 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Supervisor / Foreman', (signatureSpacing * 2) + signatureBoxWidth + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
+
+    // Tanda Tangan 3: Disetujui
+    doc.setFont('helvetica', 'bold');
+    doc.text('Disetujui Oleh,', (signatureSpacing * 3) + (signatureBoxWidth * 2) + (signatureBoxWidth / 2), finalY, { align: 'center' });
+    doc.line((signatureSpacing * 3) + (signatureBoxWidth * 2), finalY + 20, (signatureSpacing * 3) + (signatureBoxWidth * 3), finalY + 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Site Manager / PM', (signatureSpacing * 3) + (signatureBoxWidth * 2) + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
+
+    // Simpan File
+    doc.save(`Nota_Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="rekap-page">
       <section className="rekap-hero surface-card surface-card--accent">
@@ -329,18 +472,28 @@ export default function RekapPage() {
             Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.
           </p>
           <div className="rekap-hero-actions">
-            {isAdmin && (
-              <button
-                className="rekap-export-btn"
-                type="button"
-                onClick={handleExportExcel}
-                disabled={isLoading || rows.length === 0}
-                title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh rekap ${periodOption.label.toLowerCase()} ke Excel`}
-              >
-                <FileDown size={18} />
-                <span>Ekspor ke Excel</span>
-              </button>
-            )}
+              <>
+                <button
+                  className="rekap-export-btn"
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={isLoading || rows.length === 0}
+                  title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh rekap ${periodOption.label.toLowerCase()} ke Excel`}
+                >
+                  <FileDown size={18} />
+                  <span>Ekspor ke Excel</span>
+                </button>
+                <button
+                  className="rekap-export-btn rekap-export-btn--pdf"
+                  type="button"
+                  onClick={handleExportPDF}
+                  disabled={isLoading || rows.length === 0}
+                  title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh nota rekap ${periodOption.label.toLowerCase()} ke PDF`}
+                >
+                  <FileText size={18} />
+                  <span>Ekspor Nota (PDF)</span>
+                </button>
+              </>
             <button
               className="rekap-secondary-btn"
               type="button"
