@@ -422,7 +422,7 @@ export default function RekapPage() {
       margin: { top: 45 }
     });
 
-    // Bagian Tanda Tangan
+    // Bagian Tanda Tangan (Hanya Kontraktor)
     let finalY = doc.lastAutoTable.finalY + 25;
 
     // Jika mepet ke bawah, tambah halaman baru
@@ -431,31 +431,20 @@ export default function RekapPage() {
       finalY = 20;
     }
 
-    const signatureBoxWidth = 50;
-    const signatureSpacing = (pageWidth - (3 * signatureBoxWidth)) / 4;
+    const signatureBoxWidth = 60;
+    const rightMargin = 14;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
 
-    // Tanda Tangan 1: Pembuat
-    doc.text('Dibuat Oleh,', signatureSpacing + (signatureBoxWidth / 2), finalY, { align: 'center' });
-    doc.line(signatureSpacing, finalY + 20, signatureSpacing + signatureBoxWidth, finalY + 20);
+    // Posisi tanda tangan di kanan bawah
+    const posX = pageWidth - signatureBoxWidth - rightMargin;
+    doc.text('Tanda Tangan,', posX + (signatureBoxWidth / 2), finalY, { align: 'center' });
+    
+    doc.line(posX, finalY + 20, posX + signatureBoxWidth, finalY + 20);
+    
     doc.setFont('helvetica', 'normal');
-    doc.text('Admin / Checker', signatureSpacing + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
-
-    // Tanda Tangan 2: Diperiksa
-    doc.setFont('helvetica', 'bold');
-    doc.text('Diperiksa Oleh,', (signatureSpacing * 2) + signatureBoxWidth + (signatureBoxWidth / 2), finalY, { align: 'center' });
-    doc.line((signatureSpacing * 2) + signatureBoxWidth, finalY + 20, (signatureSpacing * 2) + (signatureBoxWidth * 2), finalY + 20);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Supervisor / Foreman', (signatureSpacing * 2) + signatureBoxWidth + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
-
-    // Tanda Tangan 3: Disetujui
-    doc.setFont('helvetica', 'bold');
-    doc.text('Disetujui Oleh,', (signatureSpacing * 3) + (signatureBoxWidth * 2) + (signatureBoxWidth / 2), finalY, { align: 'center' });
-    doc.line((signatureSpacing * 3) + (signatureBoxWidth * 2), finalY + 20, (signatureSpacing * 3) + (signatureBoxWidth * 3), finalY + 20);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Site Manager / PM', (signatureSpacing * 3) + (signatureBoxWidth * 2) + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
+    doc.text(meta?.contractor || 'Kontraktor', posX + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
 
     // Simpan File
     doc.save(`Nota_Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -577,7 +566,7 @@ export default function RekapPage() {
                   }))
                 }
               >
-                <option value="">Semua kontraktor</option>
+                <option value="">Nama</option>
                 {CONTRACTOR_OPTIONS.filter((option) => option.value !== '__custom__').map(
                   (option) => (
                     <option key={option.value} value={option.value}>
