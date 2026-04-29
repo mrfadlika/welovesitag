@@ -203,23 +203,34 @@ export default function DashboardPage() {
           </div>
 
           {rekapPreview.length > 0 ? (
-            <div className="guide-list">
-              {rekapPreview.map((row) => (
-                <div className="guide-item rekap-row-preview" key={`${row.date}-${row.day}`}>
-                  <span className="guide-step">
-                    <MapPin size={14} />
-                  </span>
-                  <div>
-                    <strong>
-                      {row.day}, {row.date}
-                    </strong>
-                    <p>
-                      Fuso {row.fusoCount} | Dyna {row.dynaCount} | Total{' '}
-                      {formatCurrency(row.totalPrice)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="data-table-wrap dashboard-table-wrap">
+              <table className="data-table dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Hari</th>
+                    <th>Tanggal</th>
+                    <th className="table-head-center">Retase Fuso</th>
+                    <th className="table-head-center">Retase Dyna</th>
+                    <th className="table-head-right">Total Harga</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rekapPreview.map((row) => (
+                    <tr key={`${row.date}-${row.day}`}>
+                      <td data-label="Hari">
+                        <span className="dashboard-table-day">
+                          <MapPin size={14} />
+                          {row.day}
+                        </span>
+                      </td>
+                      <td data-label="Tanggal">{row.date}</td>
+                      <td data-label="Retase Fuso" className="table-cell-center">{row.fusoCount}</td>
+                      <td data-label="Retase Dyna" className="table-cell-center">{row.dynaCount}</td>
+                      <td data-label="Total Harga" className="table-primary table-cell-right">{formatCurrency(row.totalPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="empty-state-panel">
@@ -239,16 +250,25 @@ export default function DashboardPage() {
             <span className="panel-note">Diselaraskan dengan workbook</span>
           </div>
 
-          <div className="guide-list">
-            {focusGuide.map((item, index) => (
-              <div className="guide-item" key={item.title}>
-                <span className="guide-step">{index + 1}</span>
-                <div>
-                  <strong>{item.title}</strong>
-                  <p>{item.detail}</p>
-                </div>
-              </div>
-            ))}
+          <div className="data-table-wrap dashboard-table-wrap">
+            <table className="data-table dashboard-table">
+                <thead>
+                  <tr>
+                    <th className="table-head-center">Tahap</th>
+                    <th>Fokus</th>
+                    <th>Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {focusGuide.map((item, index) => (
+                  <tr key={item.title}>
+                    <td data-label="Tahap" className="table-code table-cell-center">{String(index + 1).padStart(2, '0')}</td>
+                    <td data-label="Fokus" className="table-primary">{item.title}</td>
+                    <td data-label="Keterangan">{item.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </article>
       </section>

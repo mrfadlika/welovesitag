@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
 import {
   CONTRACTOR_OPTIONS,
@@ -40,7 +41,6 @@ const EMPTY_FORM = {
   contractorCustom: '',
   truckNumber: '',
   checkerPit: '',
-  photo: null,
 };
 
 function FieldError({ message }) {
@@ -102,11 +102,25 @@ export default function InputRetasePage() {
   const isAdmin = user?.role === 'admin';
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const draftStorageKey = useMemo(() => {
+    const role = user?.role || 'guest';
+    const identity = user?.username || user?.name || 'anonymous';
 
-  const [formData, setFormData] = useState({
-    ...EMPTY_FORM,
-    checkerPit: user?.name || user?.username || '',
-  });
+    return `sitag:v1:input-retase:${role}:${identity}`;
+  }, [user?.name, user?.role, user?.username]);
+  const initialFormData = useMemo(
+    () => ({
+      ...EMPTY_FORM,
+      checkerPit: user?.name || user?.username || '',
+    }),
+    [user?.name, user?.username]
+  );
+
+  const [formData, setFormData, clearFormData] = usePersistentState(
+    draftStorageKey,
+    initialFormData
+  );
+  const [, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
@@ -145,14 +159,15 @@ export default function InputRetasePage() {
       return;
     }
 
-    setFormData((previous) => ({ ...previous, photo: file }));
+    setPhotoFile(file);
+    setErrors((previous) => ({ ...previous, photo: '' }));
     const reader = new FileReader();
     reader.onloadend = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
   };
 
   const removePhoto = () => {
-    setFormData((previous) => ({ ...previous, photo: null }));
+    setPhotoFile(null);
     setPhotoPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -225,11 +240,13 @@ export default function InputRetasePage() {
         id: result.data?.id || '-',
         message: 'Data retase berhasil masuk ke log real-time.',
       });
-      setFormData({
-        ...EMPTY_FORM,
-        checkerPit: user?.name || user?.username || '',
-      });
+      setFormData((previous) => ({
+        ...previous,
+        truckNumber: '',
+      }));
+      setPhotoFile(null);
       setPhotoPreview(null);
+      setErrors({});
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
     } catch (error) {
@@ -243,18 +260,60 @@ export default function InputRetasePage() {
   };
 
   const summaryItems = [
-    ['Jenis Material', resolvedSubmission.materialType || getOptionLabel(MATERIAL_OPTIONS, formData.materialType)],
-    ['Lokasi', resolvedSubmission.locationOwner || getOptionLabel(LOCATION_OPTIONS, formData.locationOwner)],
-    ['Alat Berat', resolvedSubmission.heavyEquipment || getOptionLabel(HEAVY_EQUIPMENT_OPTIONS, formData.heavyEquipment)],
-    ['Jenis Truk', resolvedSubmission.truckTypeLabel || getOptionLabel(TRUCK_TYPE_OPTIONS, formData.truckType)],
-    ['No Polisi', formData.truckNumber || '-'],
-    ['Kontraktor', resolvedSubmission.contractor || getOptionLabel(CONTRACTOR_OPTIONS, formData.contractor)],
-    ['Checker Pit', resolvedSubmission.checkerPit || '-'],
-    ['Checker Gate', 'Otomatis saat verifikasi'],
+    {
+      label: 'Jenis Material',
+      value:
+        resolvedSubmission.materialType ||
+        getOptionLabel(MATERIAL_OPTIONS, formData.materialType),
+    },
+    {
+      label: 'Lokasi',
+      value:
+        resolvedSubmission.locationOwner ||
+        getOptionLabel(LOCATION_OPTIONS, formData.locationOwner),
+    },
+    {
+      label: 'Alat Berat',
+      value:
+        resolvedSubmission.heavyEquipment ||
+        getOptionLabel(HEAVY_EQUIPMENT_OPTIONS, formData.heavyEquipment),
+    },
+    {
+      label: 'Jenis Truk',
+      value:
+        resolvedSubmission.truckTypeLabel ||
+        getOptionLabel(TRUCK_TYPE_OPTIONS, formData.truckType),
+    },
+    { label: 'No Polisi', value: formData.truckNumber || '-' },
+    {
+      label: 'Kontraktor',
+      value:
+        resolvedSubmission.contractor ||
+        getOptionLabel(CONTRACTOR_OPTIONS, formData.contractor),
+    },
+    { label: 'Checker Pit', value: resolvedSubmission.checkerPit || '-' },
+    { label: 'Checker Gate', value: 'Otomatis saat verifikasi' },
+  ];
+  const workflowSteps = [
+    {
+      step: '01',
+      focus: 'Input retase dari checker pit',
+      detail: 'Field utama mengikuti workbook Excel agar data log tetap rapi.',
+    },
+    {
+      step: '02',
+      focus: 'Verifikasi gate dilakukan terpisah',
+      detail: 'Checker gate akan terisi otomatis setelah data disetujui.',
+    },
+    {
+      step: '03',
+      focus: 'Data langsung masuk log dan rekap',
+      detail: 'Riwayat dan rekap harian mengambil data dari struktur yang sama.',
+    },
   ];
 
   const completionPercent = Math.round(
-    (summaryItems.filter(([, value]) => value && value !== '-').length / summaryItems.length) * 100
+    (summaryItems.filter((item) => item.value && item.value !== '-').length / summaryItems.length) * 100
   );
 
   const now = new Date();
@@ -277,6 +336,9 @@ export default function InputRetasePage() {
           <span className="section-kicker">Workbook Sync</span>
           <h2>Form Input Data Retase</h2>
           <p>Field sekarang disusun mengikuti sheet Excel: material, lokasi, alat berat, jenis truk, no polisi, kontraktor, checker pit, dan checker gate.</p>
+          <span className="draft-state recovered">
+            Draft input tersimpan otomatis selama sesi browser. Foto perlu dipilih ulang.
+          </span>
         </div>
         <div className="role-indicator checker">
           <Pickaxe size={18} />
@@ -370,9 +432,11 @@ export default function InputRetasePage() {
 
           <div className="form-actions">
             <button type="button" className="btn-secondary" onClick={() => {
-              setFormData({ ...EMPTY_FORM, checkerPit: user?.name || user?.username || '' });
+              clearFormData();
+              setPhotoFile(null);
               setPhotoPreview(null);
               setErrors({});
+              setSubmitResult(null);
               if (fileInputRef.current) fileInputRef.current.value = '';
               if (cameraInputRef.current) cameraInputRef.current.value = '';
             }}>Reset Form</button>
@@ -393,16 +457,33 @@ export default function InputRetasePage() {
               <strong>{completionPercent}% lengkap</strong>
               <span>Form ini mengikuti urutan kolom utama pada file Excel.</span>
             </div>
-            <div className="summary-list">
-              {summaryItems.map(([label, value]) => (
-                <div className={`summary-item ${value && value !== '-' ? 'done' : 'pending'}`} key={label}>
-                  <div>
-                    <span className="summary-label">{label}</span>
-                    <strong className="summary-value">{value || '-'}</strong>
-                  </div>
-                  <span className="summary-flag">{value && value !== '-' ? 'Siap' : 'Belum'}</span>
-                </div>
-              ))}
+            <div className="data-table-wrap summary-table-wrap">
+              <table className="data-table summary-table">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Nilai</th>
+                    <th className="table-head-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryItems.map((item) => {
+                    const isReady = item.value && item.value !== '-';
+
+                    return (
+                      <tr key={item.label}>
+                        <td data-label="Field" className="summary-label-cell">{item.label}</td>
+                        <td data-label="Nilai" className="summary-value-cell">{item.value || '-'}</td>
+                        <td data-label="Status" className="table-cell-center">
+                          <span className={`summary-flag ${isReady ? 'done' : 'pending'}`}>
+                            {isReady ? 'Siap' : 'Belum'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -411,10 +492,25 @@ export default function InputRetasePage() {
               <span className="section-kicker">Checklist Kerja</span>
               <h3>Alur yang dipakai</h3>
             </div>
-            <div className="helper-list">
-              <div className="helper-item"><span className="helper-marker">1</span><div><strong>Input retase dari checker pit</strong><span>Field utama mengikuti workbook Excel agar data log rapi.</span></div></div>
-              <div className="helper-item"><span className="helper-marker">2</span><div><strong>Verifikasi gate dilakukan terpisah</strong><span>Checker gate akan terisi otomatis setelah data disetujui.</span></div></div>
-              <div className="helper-item"><span className="helper-marker">3</span><div><strong>Data langsung masuk log dan rekap</strong><span>Riwayat dan rekap harian mengambil data dari struktur yang sama.</span></div></div>
+            <div className="data-table-wrap helper-table-wrap">
+              <table className="data-table helper-table">
+                <thead>
+                  <tr>
+                    <th className="table-head-center">Tahap</th>
+                    <th>Fokus</th>
+                    <th>Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workflowSteps.map((item) => (
+                    <tr key={item.step}>
+                      <td data-label="Tahap" className="table-code table-cell-center">{item.step}</td>
+                      <td data-label="Fokus" className="table-primary">{item.focus}</td>
+                      <td data-label="Keterangan">{item.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

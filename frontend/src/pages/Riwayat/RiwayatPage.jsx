@@ -11,6 +11,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
 import { LOG_STATUS_OPTIONS, TRUCK_TYPE_OPTIONS } from '../../data/retaseOptions';
 import { buildRetaseHistory } from '../../utils/retase';
@@ -49,16 +50,26 @@ function getStatusLabel(status) {
 }
 
 export default function RiwayatPage() {
+  const initialViewState = useMemo(
+    () => ({
+      searchQuery: '',
+      filterType: 'all',
+      filterStatus: 'all',
+      dateRange: {
+        startDate: '',
+        endDate: '',
+      },
+      showFilters: false,
+    }),
+    []
+  );
+  const [viewState, setViewState] = usePersistentState(
+    'sitag:v1:riwayat:filters',
+    initialViewState
+  );
+  const { searchQuery, filterType, filterStatus, dateRange, showFilters } = viewState;
   const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [dateRange, setDateRange] = useState({
-    startDate: '',
-    endDate: '',
-  });
-  const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
@@ -138,12 +149,15 @@ export default function RiwayatPage() {
   const hasActiveFilters = activeFilterCount > 0;
 
   const handleClearFilters = () => {
-    setFilterType('all');
-    setFilterStatus('all');
-    setDateRange({
-      startDate: '',
-      endDate: '',
-    });
+    setViewState((previous) => ({
+      ...previous,
+      filterType: 'all',
+      filterStatus: 'all',
+      dateRange: {
+        startDate: '',
+        endDate: '',
+      },
+    }));
   };
 
   const summary = useMemo(() => {
@@ -180,11 +194,25 @@ export default function RiwayatPage() {
             type="text"
             placeholder="Cari no reg, no polisi, material, lokasi, kontraktor, atau checker..."
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) =>
+              setViewState((previous) => ({
+                ...previous,
+                searchQuery: event.target.value,
+              }))
+            }
             className="search-input"
           />
           {searchQuery && (
-            <button className="search-clear" type="button" onClick={() => setSearchQuery('')}>
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() =>
+                setViewState((previous) => ({
+                  ...previous,
+                  searchQuery: '',
+                }))
+              }
+            >
               <X size={16} />
             </button>
           )}
@@ -194,7 +222,12 @@ export default function RiwayatPage() {
           <button
             className={`filter-toggle ${showFilters ? 'active' : ''}`}
             type="button"
-            onClick={() => setShowFilters((value) => !value)}
+            onClick={() =>
+              setViewState((previous) => ({
+                ...previous,
+                showFilters: !previous.showFilters,
+              }))
+            }
           >
             <Filter size={16} />
             Filter
@@ -221,7 +254,12 @@ export default function RiwayatPage() {
               <button
                 className={`chip ${filterType === 'all' ? 'active' : ''}`}
                 type="button"
-                onClick={() => setFilterType('all')}
+                onClick={() =>
+                  setViewState((previous) => ({
+                    ...previous,
+                    filterType: 'all',
+                  }))
+                }
               >
                 Semua
               </button>
@@ -230,7 +268,12 @@ export default function RiwayatPage() {
                   key={type.value}
                   className={`chip ${filterType === type.value ? 'active' : ''}`}
                   type="button"
-                  onClick={() => setFilterType(type.value)}
+                  onClick={() =>
+                    setViewState((previous) => ({
+                      ...previous,
+                      filterType: type.value,
+                    }))
+                  }
                 >
                   {type.label}
                 </button>
@@ -245,7 +288,12 @@ export default function RiwayatPage() {
                   key={option.value}
                   className={`chip ${filterStatus === option.value ? 'active' : ''}`}
                   type="button"
-                  onClick={() => setFilterStatus(option.value)}
+                  onClick={() =>
+                    setViewState((previous) => ({
+                      ...previous,
+                      filterStatus: option.value,
+                    }))
+                  }
                 >
                   {option.label}
                 </button>
@@ -261,9 +309,12 @@ export default function RiwayatPage() {
                 className="filter-date-input"
                 value={dateRange.startDate}
                 onChange={(event) =>
-                  setDateRange((previous) => ({
+                  setViewState((previous) => ({
                     ...previous,
-                    startDate: event.target.value,
+                    dateRange: {
+                      ...previous.dateRange,
+                      startDate: event.target.value,
+                    },
                   }))
                 }
               />
@@ -272,9 +323,12 @@ export default function RiwayatPage() {
                 className="filter-date-input"
                 value={dateRange.endDate}
                 onChange={(event) =>
-                  setDateRange((previous) => ({
+                  setViewState((previous) => ({
                     ...previous,
-                    endDate: event.target.value,
+                    dateRange: {
+                      ...previous.dateRange,
+                      endDate: event.target.value,
+                    },
                   }))
                 }
               />
@@ -303,7 +357,7 @@ export default function RiwayatPage() {
         <strong>Tampilan riwayat disamakan dengan fitur lain:</strong>
         <span>
           Gunakan pencarian, filter, dan rentang tanggal untuk mempersempit log. Data
-          ditampilkan dalam bentuk kartu agar nyaman di semua ukuran layar tanpa perlu geser ke samping.
+          sekarang ditampilkan penuh dalam bentuk tabel agar konsisten antar fitur.
         </span>
       </div>
 
@@ -327,112 +381,50 @@ export default function RiwayatPage() {
             <p>Coba ubah kata kunci atau hapus filter yang aktif.</p>
           </div>
         ) : (
-          <>
-            <div className="riwayat-table-wrap workbook-log-wrap">
-              <table className="riwayat-table workbook-log-table">
-                <thead>
-                  <tr>
-                    <th>No Reg</th>
-                    <th>Tanggal</th>
-                    <th>Waktu</th>
-                    <th>Jenis Material</th>
-                    <th>Lokasi / Pemilik</th>
-                    <th>Alat Berat</th>
-                    <th>Checker Pit</th>
-                    <th>Jenis Truk</th>
-                    <th>No Polisi</th>
-                    <th>Kontraktor</th>
-                    <th>Checker Gate</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
+          <div className="riwayat-table-wrap workbook-log-wrap data-table-wrap">
+            <table className="riwayat-table workbook-log-table data-table">
+              <thead>
+                <tr>
+                  <th>No Reg</th>
+                  <th>Tanggal</th>
+                  <th className="table-head-center">Waktu</th>
+                  <th>Jenis Material</th>
+                  <th>Lokasi / Pemilik</th>
+                  <th>Alat Berat</th>
+                  <th>Checker Pit</th>
+                  <th className="table-head-center">Jenis Truk</th>
+                  <th>No Polisi</th>
+                  <th>Kontraktor</th>
+                  <th>Checker Gate</th>
+                  <th className="table-head-center">Status</th>
+                  <th className="table-head-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((item) => (
+                  <tr key={item.id}>
+                    <td data-label="No Reg"><span className="cell-id">{item.id}</span></td>
+                    <td data-label="Tanggal">{item.date}</td>
+                    <td data-label="Waktu" className="table-cell-center"><span className="time-hour">{item.time}</span></td>
+                    <td data-label="Jenis Material">{item.materialType}</td>
+                    <td data-label="Lokasi / Pemilik">{item.locationOwner}</td>
+                    <td data-label="Alat Berat">{item.heavyEquipment}</td>
+                    <td data-label="Checker Pit">{item.checkerPit}</td>
+                    <td data-label="Jenis Truk" className="table-cell-center"><span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span></td>
+                    <td data-label="No Polisi"><span className="cell-truck-number">{item.truckNumber}</span></td>
+                    <td data-label="Kontraktor">{item.contractor}</td>
+                    <td data-label="Checker Gate">{item.checkerGate}</td>
+                    <td data-label="Status" className="table-cell-center"><StatusBadge status={item.status} /></td>
+                    <td data-label="Aksi" className="table-cell-center">
+                      <button type="button" className="view-btn" onClick={() => setSelectedRecord(item)}>
+                        <Eye size={16} />
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((item) => (
-                    <tr key={item.id}>
-                      <td><span className="cell-id">{item.id}</span></td>
-                      <td>{item.date}</td>
-                      <td><span className="time-hour">{item.time}</span></td>
-                      <td>{item.materialType}</td>
-                      <td>{item.locationOwner}</td>
-                      <td>{item.heavyEquipment}</td>
-                      <td>{item.checkerPit}</td>
-                      <td><span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span></td>
-                      <td><span className="cell-truck-number">{item.truckNumber}</span></td>
-                      <td>{item.contractor}</td>
-                      <td>{item.checkerGate}</td>
-                      <td><StatusBadge status={item.status} /></td>
-                      <td>
-                        <button className="view-btn" onClick={() => setSelectedRecord(item)}>
-                          <Eye size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="riwayat-cards">
-              {filteredData.map((item) => (
-                <article
-                  className="riwayat-card surface-card"
-                  key={item.id}
-                  onClick={() => setSelectedRecord(item)}
-                >
-                  <div className="riwayat-card-header">
-                    <div className="riwayat-card-identity">
-                      <div className="riwayat-truck-icon">
-                        <span className={`type-badge ${item.truckType}`}>{item.truckTypeLabel}</span>
-                      </div>
-                      <div className="riwayat-card-title">
-                        <strong className="cell-truck-number">{item.truckNumber}</strong>
-                        <p>{item.id} • {item.materialType}</p>
-                      </div>
-                    </div>
-                    <StatusBadge status={item.status} />
-                  </div>
-
-                  <div className="riwayat-card-grid">
-                    <div className="riwayat-card-item">
-                      <span>Lokasi / Pemilik</span>
-                      <strong>{item.locationOwner}</strong>
-                    </div>
-                    <div className="riwayat-card-item">
-                      <span>Kontraktor</span>
-                      <strong>{item.contractor}</strong>
-                    </div>
-                    <div className="riwayat-card-item">
-                      <span>Alat Berat</span>
-                      <strong>{item.heavyEquipment}</strong>
-                    </div>
-                    <div className="riwayat-card-item">
-                      <span>Checker Pit</span>
-                      <strong>{item.checkerPit}</strong>
-                    </div>
-                  </div>
-
-                  <div className="riwayat-card-footer">
-                    <div className="riwayat-card-meta">
-                      <span className="riwayat-meta-date">{item.date} • {item.time}</span>
-                      {item.checkerGate && <span className="riwayat-meta-gate">Gate: {item.checkerGate}</span>}
-                    </div>
-                    <button
-                      className="riwayat-card-action"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedRecord(item);
-                      }}
-                    >
-                      <Eye size={16} />
-                      <span>Detail</span>
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

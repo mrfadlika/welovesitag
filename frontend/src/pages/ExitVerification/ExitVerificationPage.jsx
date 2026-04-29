@@ -6,20 +6,25 @@ import {
   Loader2,
   Search,
   ShieldCheck,
-  Truck,
   X,
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
 import { buildRetaseHistory } from '../../utils/retase';
 import './ExitVerificationPage.css';
 
 export default function ExitVerificationPage() {
   const { user } = useAuth();
+  const searchStorageKey = useMemo(() => {
+    const role = user?.role || 'guest';
+    const identity = user?.username || user?.name || 'anonymous';
+
+    return `sitag:v1:verifikasi:${role}:${identity}`;
+  }, [user?.name, user?.role, user?.username]);
   const [records, setRecords] = useState([]);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePersistentState(searchStorageKey, '');
   const [verifyingId, setVerifyingId] = useState(null);
   const [verifyResult, setVerifyResult] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,13 +80,16 @@ export default function ExitVerificationPage() {
       { label: 'Menunggu Gate', value: filteredData.length, note: 'Retase siap diputuskan' },
       { label: 'Lokasi Aktif', value: uniqueLocations, note: 'Lokasi / pemilik dalam antrean' },
       { label: 'Kontraktor Aktif', value: uniqueContractors, note: 'Kontraktor yang sedang berjalan' },
-      { label: 'Data Terlama', value: oldestRecord ? oldestRecord.time : '-', note: oldestRecord ? oldestRecord.date : 'Belum ada antrean' },
+      {
+        label: 'Data Terlama',
+        value: oldestRecord ? oldestRecord.time : '-',
+        note: oldestRecord ? oldestRecord.date : 'Belum ada antrean',
+      },
     ];
   }, [filteredData]);
 
   const updateRecordStatus = (recordId) => {
     setRecords((previous) => previous.filter((item) => item.id !== recordId));
-    setSelectedRecord((previous) => (previous?.id === recordId ? null : previous));
   };
 
   const handleVerification = async (recordId, approved) => {
@@ -155,7 +163,7 @@ export default function ExitVerificationPage() {
 
       <div className="verify-note surface-card">
         <strong>Urutan aman verifikasi gate:</strong>
-        <span>Buka kartu, cocokkan material dan lokasi, periksa alat berat serta kontraktor, lalu setujui atau tolak.</span>
+        <span>Pilih baris tabel, cocokkan material dan lokasi, periksa alat berat serta kontraktor, lalu setujui atau tolak.</span>
       </div>
 
       <div className="verify-toolbar">
@@ -169,7 +177,7 @@ export default function ExitVerificationPage() {
             className="search-input"
           />
           {searchQuery && (
-            <button className="search-clear" onClick={() => setSearchQuery('')}>
+            <button type="button" className="search-clear" onClick={() => setSearchQuery('')}>
               <X size={16} />
             </button>
           )}
@@ -195,72 +203,113 @@ export default function ExitVerificationPage() {
           <p>Semua data retase sudah diproses atau belum ada input baru dari checker pit.</p>
         </div>
       ) : (
-        <div className="verify-list">
-          {filteredData.map((record) => {
-            const isOpen = selectedRecord?.id === record.id;
-
-            return (
-              <div key={record.id} className={`verify-card ${isOpen ? 'expanded' : ''}`} onClick={() => setSelectedRecord(isOpen ? null : record)}>
-                <div className="verify-card-header">
-                  <div className="verify-truck-info">
-                    <div className="truck-icon-wrapper">
-                      <Truck size={24} />
-                    </div>
-                    <div className="truck-details">
-                      <h3>{record.truckNumber}</h3>
-                      <p>{record.id} • {record.truckTypeLabel} • {record.materialType}</p>
-                    </div>
-                  </div>
-                  <div className="truck-badge">
-                    <ShieldCheck size={15} />
-                    <span>Menunggu Gate</span>
-                  </div>
-                </div>
-
-                <div className="verify-card-body">
-                  <div className="info-row workbook-info-row">
-                    <div className="info-item"><span className="info-label">Lokasi</span><span className="info-value">{record.locationOwner}</span></div>
-                    <div className="info-item"><span className="info-label">Alat Berat</span><span className="info-value">{record.heavyEquipment}</span></div>
-                    <div className="info-item"><span className="info-label">Kontraktor</span><span className="info-value">{record.contractor}</span></div>
-                    <div className="info-item"><span className="info-label">Checker Pit</span><span className="info-value">{record.checkerPit}</span></div>
-                  </div>
-
-                  {!isOpen && <span className="expand-hint">Klik untuk buka detail dan aksi verifikasi gate</span>}
-
-                  {isOpen && (
-                    <div className="verify-card-expanded">
-                      <div className="detail-grid">
-                        <div className="detail-item"><span className="detail-label">No Reg</span><span className="detail-value">{record.id}</span></div>
-                        <div className="detail-item"><span className="detail-label">Tanggal / Waktu</span><span className="detail-value">{record.date} {record.time}</span></div>
-                        <div className="detail-item"><span className="detail-label">Jenis Material</span><span className="detail-value">{record.materialType}</span></div>
-                        <div className="detail-item"><span className="detail-label">Lokasi / Pemilik</span><span className="detail-value">{record.locationOwner}</span></div>
-                        <div className="detail-item"><span className="detail-label">Alat Berat</span><span className="detail-value">{record.heavyEquipment}</span></div>
-                        <div className="detail-item"><span className="detail-label">Kontraktor</span><span className="detail-value">{record.contractor}</span></div>
-                        <div className="detail-item"><span className="detail-label">Checker Pit</span><span className="detail-value">{record.checkerPit}</span></div>
-                        <div className="detail-item"><span className="detail-label">No Polisi</span><span className="detail-value">{record.truckNumber}</span></div>
-                      </div>
-
-                      <div className="verify-actions">
-                        <button className="btn-approve" onClick={(event) => {
-                          event.stopPropagation();
-                          handleVerification(record.id, true);
-                        }} disabled={verifyingId === record.id}>
-                          {verifyingId === record.id ? <><Loader2 size={18} className="spinner" /> Memproses...</> : <><CheckCircle2 size={18} /> Setujui Gate</>}
-                        </button>
-                        <button className="btn-reject" onClick={(event) => {
-                          event.stopPropagation();
-                          handleVerification(record.id, false);
-                        }} disabled={verifyingId === record.id}>
-                          {verifyingId === record.id ? <><Loader2 size={18} className="spinner" /> Memproses...</> : <><XCircle size={18} /> Tolak</>}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="data-table-wrap verify-table-wrap">
+            <table className="data-table verify-table">
+              <thead>
+                <tr>
+                  <th className="verify-head verify-head--registration">Registrasi</th>
+                  <th className="verify-head verify-head--truck">NOPOL & Truk</th>
+                  <th className="verify-head verify-head--material">Material & Lokasi</th>
+                  <th className="verify-head verify-head--ops">Operasional</th>
+                  <th className="verify-head verify-head--checker">Checker</th>
+                  <th className="verify-head verify-head--status table-head-center">Status</th>
+                  <th className="verify-head verify-head--action table-head-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((record) => {
+                  return (
+                    <tr key={record.id}>
+                      <td data-label="Registrasi" className="verify-cell verify-cell--registration">
+                        <div className="table-stack verify-cell-stack">
+                          <span className="table-code">{record.id}</span>
+                          <span className="table-primary">{record.date}</span>
+                          <span className="table-muted">{record.time}</span>
+                        </div>
+                      </td>
+                      <td data-label="Truk" className="verify-cell verify-cell--truck">
+                        <div className="table-stack verify-cell-stack">
+                          <span className="table-code">{record.truckNumber}</span>
+                          <span className="verify-type-chip">{record.truckTypeLabel}</span>
+                        </div>
+                      </td>
+                      <td data-label="Material & Lokasi" className="verify-cell verify-cell--material">
+                        <div className="table-stack verify-cell-stack">
+                          <span className="table-primary">{record.materialType}</span>
+                          <span className="table-muted">{record.locationOwner}</span>
+                        </div>
+                      </td>
+                      <td data-label="Operasional" className="verify-cell verify-cell--ops">
+                        <div className="table-stack verify-cell-stack">
+                          <span className="table-primary">{record.heavyEquipment}</span>
+                          <span className="table-muted">{record.contractor}</span>
+                        </div>
+                      </td>
+                      <td data-label="Checker" className="verify-cell verify-cell--checker">
+                        <div className="table-stack verify-cell-stack">
+                          <span className="table-primary">{record.checkerPit}</span>
+                          <span className="table-muted">Checker Pit</span>
+                        </div>
+                      </td>
+                      <td data-label="Status" className="verify-cell verify-cell--status table-cell-center">
+                        <div className="table-stack verify-cell-stack verify-status-stack">
+                          <span className="truck-badge verify-status-badge">
+                            <ShieldCheck size={14} />
+                            <span>Menunggu Gate</span>
+                          </span>
+                          <span className="table-muted verify-status-note">Siap diverifikasi gate</span>
+                        </div>
+                      </td>
+                      <td data-label="Aksi" className="verify-cell verify-cell--action table-cell-center">
+                        <div className="table-actions verify-table-actions verify-action-stack">
+                          <button
+                            type="button"
+                            className="btn-approve"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleVerification(record.id, true);
+                            }}
+                            disabled={verifyingId === record.id}
+                          >
+                            {verifyingId === record.id ? (
+                              <>
+                                <Loader2 size={18} className="spinner" /> Memproses...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 size={18} /> Setujui
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-reject"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleVerification(record.id, false);
+                            }}
+                            disabled={verifyingId === record.id}
+                          >
+                            {verifyingId === record.id ? (
+                              <>
+                                <Loader2 size={18} className="spinner" /> Memproses...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle size={18} /> Tolak
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

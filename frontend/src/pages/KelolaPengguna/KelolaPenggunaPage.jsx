@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
-import { 
-  Users, 
-  UserPlus, 
-  Trash2, 
-  ShieldCheck, 
-  Truck, 
-  HardHat, 
-  Search, 
-  X, 
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Users,
+  UserPlus,
+  Trash2,
+  ShieldCheck,
+  Truck,
+  HardHat,
+  Search,
+  X,
   AlertCircle,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react';
+import usePersistentState from '../../hooks/usePersistentState';
 import { userAPI } from '../../services/api';
 import './KelolaPenggunaPage.css';
 
@@ -44,27 +45,31 @@ function formatRegisteredTime(value) {
   });
 }
 
-function getUserArea(user) {
-  return user.role === 'checker' ? user.pitArea || '-' : 'Semua Area';
-}
-
 export default function KelolaPenggunaPage() {
+  const initialFormDraft = useMemo(
+    () => ({
+      username: '',
+      name: '',
+      email: '',
+      role: 'staff_pos',
+      pitArea: '',
+    }),
+    []
+  );
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePersistentState(
+    'sitag:v1:kelola-pengguna:search',
+    ''
+  );
+  const [formDraft, setFormDraft] = usePersistentState(
+    'sitag:v1:kelola-pengguna:draft',
+    initialFormDraft
+  );
+  const [password, setPassword] = useState('');
   const [successToast, setSuccessToast] = useState(null);
-
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    name: '',
-    email: '',
-    role: 'staff_pos',
-    pitArea: ''
-  });
-
   const [submitting, setSubmitting] = useState(false);
 
   async function fetchUsers() {
@@ -106,32 +111,42 @@ export default function KelolaPenggunaPage() {
     };
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+
+    if (name === 'password') {
+      setPassword(value);
+      return;
+    }
+
+    setFormDraft((previous) => ({
+      ...previous,
+      [name]: value,
+      ...(name === 'role' && value !== 'checker' ? { pitArea: '' } : {}),
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setSubmitting(true);
-    
-    const result = await userAPI.create(formData);
+
+    const payload = {
+      ...formDraft,
+      password,
+    };
+
+    const result = await userAPI.create(payload);
     if (result.success) {
-      setSuccessToast(`Pengguna "${formData.name}" berhasil dibuat`);
+      setSuccessToast(`Pengguna "${formDraft.name}" berhasil dibuat`);
       setShowModal(false);
-      setFormData({
-        username: '',
-        password: '',
-        name: '',
-        email: '',
-        role: 'staff_pos',
-        pitArea: ''
-      });
+      setPassword('');
+      setFormDraft((previous) => ({
+        ...initialFormDraft,
+        role: previous.role,
+        pitArea: previous.role === 'checker' ? previous.pitArea : '',
+      }));
       fetchUsers();
-      
+
       setTimeout(() => setSuccessToast(null), 3000);
     } else {
       setError(result.message);
@@ -154,19 +169,27 @@ export default function KelolaPenggunaPage() {
 
   const getRoleIcon = (role) => {
     switch (role) {
-      case 'admin': return <ShieldCheck size={14} />;
-      case 'staff_pos': return <Truck size={14} />;
-      case 'checker': return <HardHat size={14} />;
-      default: return null;
+      case 'admin':
+        return <ShieldCheck size={14} />;
+      case 'staff_pos':
+        return <Truck size={14} />;
+      case 'checker':
+        return <HardHat size={14} />;
+      default:
+        return null;
     }
   };
 
   const getRoleLabel = (role) => {
     switch (role) {
-      case 'admin': return 'Admin';
-      case 'staff_pos': return 'Staff Pos';
-      case 'checker': return 'Checker';
-      default: return role;
+      case 'admin':
+        return 'Admin';
+      case 'staff_pos':
+        return 'Staff Pos';
+      case 'checker':
+        return 'Checker';
+      default:
+        return role;
     }
   };
 
@@ -202,15 +225,15 @@ export default function KelolaPenggunaPage() {
       <div className="manage-toolbar">
         <div className="search-bar">
           <Search className="search-icon" size={18} />
-          <input 
-            type="text" 
-            placeholder="Cari nama, username, atau email..." 
+          <input
+            type="text"
+            placeholder="Cari nama, username, atau email..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="search-input"
           />
           {searchQuery && (
-            <button className="search-clear" onClick={() => setSearchQuery('')}>
+            <button type="button" className="search-clear" onClick={() => setSearchQuery('')}>
               <X size={16} />
             </button>
           )}
@@ -239,115 +262,65 @@ export default function KelolaPenggunaPage() {
           <p>Coba ubah kata kunci pencarian atau tambahkan akun baru.</p>
         </div>
       ) : (
-        <>
-          <div className="users-table-wrap">
-            <table className="users-table">
-              <thead>
-                <tr>
-                  <th>Nama & Username</th>
-                  <th>Role</th>
-                  <th>Email</th>
-                  <th>Area Kerja</th>
-                  <th>Terdaftar Pada</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <div className="user-cell-info">
-                        <strong>{u.name}</strong>
-                        <span>@{u.username}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`role-badge ${u.role}`}>
-                        {getRoleIcon(u.role)}
-                        {getRoleLabel(u.role)}
-                      </span>
-                    </td>
-                    <td>{u.email || '-'}</td>
-                    <td>
-                      {u.role === 'checker' ? (
-                        <div className="area-info">
-                          <span className="area-label">Pit:</span>
-                          <span className="area-value">{u.pitArea || '-'}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted">Semua Area</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="date-info">
-                        <span>{formatRegisteredDate(u.createdAt)}</span>
-                        <small>{formatRegisteredTime(u.createdAt)}</small>
-                      </div>
-                    </td>
-                    <td>
-                      <button 
-                        className="btn-delete" 
-                        onClick={() => handleDelete(u.id, u.name)}
-                        disabled={u.username === 'admin'}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="users-cards">
-            {filteredUsers.map((u) => {
-              const isProtectedUser = u.username === 'admin';
-
-              return (
-                <article className="user-card surface-card" key={u.id}>
-                  <div className="user-card-top">
+        <div className="users-table-wrap data-table-wrap">
+          <table className="users-table data-table">
+            <thead>
+              <tr>
+                <th>Nama & Username</th>
+                <th className="table-head-center">Role</th>
+                <th>Email</th>
+                <th>Area Kerja</th>
+                <th>Terdaftar Pada</th>
+                <th className="table-head-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((userItem) => (
+                <tr key={userItem.id}>
+                  <td data-label="Nama & Username">
                     <div className="user-cell-info">
-                      <strong>{u.name}</strong>
-                      <span>@{u.username}</span>
+                      <strong>{userItem.name}</strong>
+                      <span>@{userItem.username}</span>
                     </div>
-                    <span className={`role-badge ${u.role}`}>
-                      {getRoleIcon(u.role)}
-                      {getRoleLabel(u.role)}
+                  </td>
+                  <td data-label="Role" className="table-cell-center">
+                    <span className={`role-badge ${userItem.role}`}>
+                      {getRoleIcon(userItem.role)}
+                      {getRoleLabel(userItem.role)}
                     </span>
-                  </div>
-
-                  <div className="user-card-grid">
-                    <div className="user-card-item">
-                      <span>Email</span>
-                      <strong>{u.email || '-'}</strong>
+                  </td>
+                  <td data-label="Email">{userItem.email || '-'}</td>
+                  <td data-label="Area Kerja">
+                    {userItem.role === 'checker' ? (
+                      <div className="area-info">
+                        <span className="area-label">Pit:</span>
+                        <span className="area-value">{userItem.pitArea || '-'}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted">Semua Area</span>
+                      )}
+                  </td>
+                  <td data-label="Terdaftar Pada">
+                    <div className="date-info">
+                      <span>{formatRegisteredDate(userItem.createdAt)}</span>
+                      <small>{formatRegisteredTime(userItem.createdAt)}</small>
                     </div>
-                    <div className="user-card-item">
-                      <span>Area Kerja</span>
-                      <strong>{getUserArea(u)}</strong>
-                    </div>
-                    <div className="user-card-item">
-                      <span>Terdaftar</span>
-                      <strong>{formatRegisteredDate(u.createdAt)}</strong>
-                      <small>{formatRegisteredTime(u.createdAt)}</small>
-                    </div>
-                  </div>
-
-                  <div className="user-card-footer">
-                    <button 
-                      className="btn-delete user-card-delete" 
-                      onClick={() => handleDelete(u.id, u.name)}
-                      disabled={isProtectedUser}
-                      title={isProtectedUser ? 'Akun admin utama tidak dapat dihapus' : 'Hapus pengguna'}
+                  </td>
+                  <td data-label="Aksi" className="table-cell-center">
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => handleDelete(userItem.id, userItem.name)}
+                      disabled={userItem.username === 'admin'}
                     >
                       <Trash2 size={18} />
-                      <span>{isProtectedUser ? 'Dilindungi' : 'Hapus'}</span>
                     </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showModal && (
@@ -363,69 +336,73 @@ export default function KelolaPenggunaPage() {
               <div className="form-grid">
                 <div className="form-group">
                   <label>Nama Lengkap</label>
-                  <input 
-                    type="text" 
-                    name="name" 
-                    required 
-                    value={formData.name} 
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    value={formDraft.name}
                     onChange={handleInputChange}
                     placeholder="Contoh: Budi Santoso"
                   />
                 </div>
                 <div className="form-group">
                   <label>Email</label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    required 
-                    value={formData.email} 
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    value={formDraft.email}
                     onChange={handleInputChange}
                     placeholder="budi@example.com"
                   />
                 </div>
                 <div className="form-group">
                   <label>Username</label>
-                  <input 
-                    type="text" 
-                    name="username" 
-                    required 
-                    value={formData.username} 
+                  <input
+                    type="text"
+                    name="username"
+                    required
+                    value={formDraft.username}
                     onChange={handleInputChange}
                     placeholder="budisantoso123"
                   />
                 </div>
                 <div className="form-group">
                   <label>Password</label>
-                  <input 
-                    type="password" 
-                    name="password" 
-                    required 
-                    value={formData.password} 
+                  <input
+                    type="password"
+                    name="password"
+                    required
+                    value={password}
                     onChange={handleInputChange}
-                    placeholder="••••••••"
+                    placeholder="Password pengguna"
                   />
                 </div>
                 <div className="form-group">
                   <label>Role / Jabatan</label>
-                  <select name="role" value={formData.role} onChange={handleInputChange}>
+                  <select name="role" value={formDraft.role} onChange={handleInputChange}>
                     <option value="admin">Administrator</option>
                     <option value="staff_pos">Staff Pos (Timbangan)</option>
                     <option value="checker">Checker (Pit Area)</option>
                   </select>
                 </div>
 
-                {formData.role === 'checker' && (
+                {formDraft.role === 'checker' && (
                   <div className="form-group">
                     <label>Nama Pit / Area</label>
-                    <input 
-                      type="text" 
-                      name="pitArea" 
-                      value={formData.pitArea} 
+                    <input
+                      type="text"
+                      name="pitArea"
+                      value={formDraft.pitArea}
                       onChange={handleInputChange}
                       placeholder="Contoh: Pit 1"
                     />
                   </div>
                 )}
+              </div>
+
+              <div className="form-draft-note">
+                Draft form tersimpan selama sesi browser. Password hanya disimpan sementara di tab aktif.
               </div>
 
               {error && (
@@ -436,7 +413,11 @@ export default function KelolaPenggunaPage() {
               )}
 
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setShowModal(false)}
+                >
                   Batal
                 </button>
                 <button type="submit" className="btn-submit" disabled={submitting}>

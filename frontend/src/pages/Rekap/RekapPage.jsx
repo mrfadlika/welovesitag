@@ -9,6 +9,7 @@ import {
   FileDown,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
 import { CONTRACTOR_OPTIONS, LOCATION_OPTIONS } from '../../data/retaseOptions';
 import { formatCurrency } from '../../utils/retase';
@@ -117,15 +118,22 @@ function getRowDateLabel(row, period) {
 export default function RekapPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const initialFilters = useMemo(
+    () => ({
+      period: DEFAULT_REKAP_PERIOD,
+      locationOwner: '',
+      contractor: '',
+      startDate: '',
+      endDate: '',
+    }),
+    []
+  );
+  const [filters, setFilters, clearFilters] = usePersistentState(
+    'sitag:v1:rekap:filters',
+    initialFilters
+  );
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
-  const [filters, setFilters] = useState({
-    period: DEFAULT_REKAP_PERIOD,
-    locationOwner: '',
-    contractor: '',
-    startDate: '',
-    endDate: '',
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
@@ -222,22 +230,11 @@ export default function RekapPage() {
     return 'Semua tanggal';
   }, [filters.endDate, filters.startDate]);
 
-  const handleClearFilters = () => {
-    setFilters({
-      period: DEFAULT_REKAP_PERIOD,
-      locationOwner: '',
-      contractor: '',
-      startDate: '',
-      endDate: '',
-    });
-  };
-
   const handleExportExcel = () => {
     if (!isAdmin || rows.length === 0) {
       return;
     }
 
-    // Creating manual HTML table for Excel compatibility.
     const header = [
       periodColumnLabel,
       dateColumnLabel,
@@ -476,7 +473,7 @@ export default function RekapPage() {
               Mode: <strong>{periodOption.label}</strong> | Rentang tanggal: <strong>{dateRangeLabel}</strong>
             </span>
             {hasActiveFilters && (
-              <button className="rekap-clear-btn" type="button" onClick={handleClearFilters}>
+              <button className="rekap-clear-btn" type="button" onClick={clearFilters}>
                 Reset Filter
               </button>
             )}
@@ -548,10 +545,42 @@ export default function RekapPage() {
       <div className="rekap-note surface-card">
         <strong>Tampilan rekap mengikuti pola fitur lain:</strong>
         <span>
-          Pilih mode harian, mingguan, atau bulanan lalu gunakan filter untuk mempersempit data. Data ditampilkan dalam bentuk kartu
-          agar nyaman di semua ukuran layar tanpa perlu geser ke samping.
+          Pilih mode harian, mingguan, atau bulanan lalu gunakan filter untuk mempersempit data. Data sekarang
+          ditampilkan penuh dalam bentuk tabel agar konsisten antar fitur.
         </span>
       </div>
+
+                <article className="rekap-grand-total surface-card surface-card--accent">
+            <div className="rekap-grand-header">
+              <span className="section-kicker">Ringkasan Total</span>
+              <div className="rekap-grand-price">
+                <span>Total Seluruh Harga</span>
+                <strong>{formatCurrency(totals.totalPrice)}</strong>
+              </div>
+            </div>
+            <div className="rekap-grand-total-grid">
+              <div>
+                <span>Jumlah Hari</span>
+                <strong>{rows.length}</strong>
+              </div>
+              <div>
+                <span>Total Retase Fuso</span>
+                <strong>{totals.fusoCount}</strong>
+              </div>
+              <div>
+                <span>Total Retase Dyna</span>
+                <strong>{totals.dynaCount}</strong>
+              </div>
+              <div>
+                <span>Harga Fuso</span>
+                <strong>{formatCurrency(totals.fusoPrice)}</strong>
+              </div>
+              <div>
+                <span>Harga Dyna</span>
+                <strong>{formatCurrency(totals.dynaPrice)}</strong>
+              </div>
+            </div>
+          </article>
 
       {isLoading ? (
         <div className="empty-state-panel">
@@ -573,136 +602,75 @@ export default function RekapPage() {
         </div>
       ) : (
         <>
-          <div className="rekap-table-wrap surface-card">
-            <table className="rekap-table">
+          <div className="rekap-table-wrap data-table-wrap surface-card">
+            <table className="rekap-table data-table">
               <thead>
                 <tr>
-                  <th>{periodColumnLabel}</th>
-                  <th>{dateColumnLabel}</th>
-                  <th>Checker Pit</th>
-                  <th>Checker Gate</th>
-                  <th>Retase Fuso</th>
-                  <th>Retase Dyna</th>
-                  <th>Harga Fuso</th>
-                  <th>Harga Dyna</th>
-                  <th>Harga</th>
-                  <th>Cumulative Harga</th>
+                  <th className="rekap-head rekap-head--period">Periode</th>
+                  <th className="rekap-head rekap-head--date">Tanggal</th>
+                  <th className="rekap-head rekap-head--checker">Checker</th>
+                  <th className="rekap-head rekap-head--trip table-head-center">Retase</th>
+                  <th className="rekap-head rekap-head--rate table-head-right">Harga Satuan</th>
+                  <th className="rekap-head rekap-head--total table-head-right">Harga</th>
+                  <th className="rekap-head rekap-head--cumulative table-head-right">Cumulative Harga</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={`${row.day}-${row.date}-${index}`}>
-                    <td>{row.day}</td>
-                    <td>{getRowDateLabel(row, filters.period)}</td>
-                    <td>{row.checkerPit}</td>
-                    <td>{row.checkerGate}</td>
-                    <td>{row.fusoCount}</td>
-                    <td>{row.dynaCount}</td>
-                    <td>{formatCurrency(row.fusoPrice)}</td>
-                    <td>{formatCurrency(row.dynaPrice)}</td>
-                    <td>{formatCurrency(row.totalPrice)}</td>
-                    <td>{formatCurrency(row.cumulativePrice)}</td>
+                    <td data-label="Periode" className="rekap-cell rekap-cell--period">
+                      <div className="table-stack rekap-cell-stack">
+                        <span className="table-primary">{row.day}</span>
+                        <span className="table-muted">{periodOption.label}</span>
+                      </div>
+                    </td>
+                    <td data-label="Tanggal" className="rekap-cell rekap-cell--date">
+                      <span className="table-primary">{getRowDateLabel(row, filters.period)}</span>
+                    </td>
+                    <td data-label="Checker" className="rekap-cell rekap-cell--checker">
+                      <div className="table-stack rekap-cell-stack">
+                        <span className="rekap-checker-line">
+                          <span className="rekap-checker-label">Pit</span>
+                          <span className="table-primary">{row.checkerPit}</span>
+                        </span>
+                        <span className="rekap-checker-line">
+                          <span className="rekap-checker-label">Gate</span>
+                          <span className="table-muted">{row.checkerGate}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label="Retase" className="rekap-cell rekap-cell--trip table-cell-center">
+                      <div className="table-stack rekap-cell-stack">
+                        <span className="rekap-metric-line">
+                          <span className="rekap-metric-label">Fuso</span>
+                          <span className="rekap-metric-value">{row.fusoCount}</span>
+                        </span>
+                        <span className="rekap-metric-line">
+                          <span className="rekap-metric-label">Dyna</span>
+                          <span className="rekap-metric-value">{row.dynaCount}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label="Harga Satuan" className="rekap-cell rekap-cell--rate">
+                      <div className="table-stack rekap-cell-stack">
+                        <span className="rekap-metric-line">
+                          <span className="rekap-metric-label">Fuso</span>
+                          <span className="rekap-metric-value">{formatCurrency(row.fusoPrice)}</span>
+                        </span>
+                        <span className="rekap-metric-line">
+                          <span className="rekap-metric-label">Dyna</span>
+                          <span className="rekap-metric-value">{formatCurrency(row.dynaPrice)}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label="Harga" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">{formatCurrency(row.totalPrice)}</td>
+                    <td data-label="Cumulative Harga" className="rekap-cell rekap-cell--cumulative rekap-cumulative-price table-cell-right">{formatCurrency(row.cumulativePrice)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="rekap-table-total">
-                  <td colSpan="4">TOTAL</td>
-                  <td>{totals.fusoCount}</td>
-                  <td>{totals.dynaCount}</td>
-                  <td>{formatCurrency(totals.fusoPrice)}</td>
-                  <td>{formatCurrency(totals.dynaPrice)}</td>
-                  <td>{formatCurrency(totals.totalPrice)}</td>
-                  <td>-</td>
-                </tr>
               </tfoot>
             </table>
-          </div>
-          <div className="rekap-cards">
-            {rows.map((row, index) => (
-              <article className="rekap-card surface-card" key={`${row.day}-${row.date}-${index}`}>
-                <div className="rekap-card-header">
-                  <div className="rekap-card-identity">
-                    <div className={`rekap-day-badge ${filters.period !== DEFAULT_REKAP_PERIOD ? 'rekap-day-badge--wide' : ''}`}>
-                      {row.day}
-                    </div>
-                    <div className="rekap-card-title">
-                      <strong>{getRowDateLabel(row, filters.period)}</strong>
-                      <p>Checker: {row.checkerPit} -&gt; {row.checkerGate}</p>
-                    </div>
-                  </div>
-                  <div className="rekap-price-badge">
-                    <span>Total Harga</span>
-                    <strong>{formatCurrency(row.totalPrice)}</strong>
-                  </div>
-                </div>
-
-                <div className="rekap-card-body">
-                  <div className="rekap-card-row">
-                    <div className="rekap-card-item">
-                      <span>Retase Fuso</span>
-                      <strong>{row.fusoCount}<small> trip</small></strong>
-                    </div>
-                    <div className="rekap-card-item">
-                      <span>Retase Dyna</span>
-                      <strong>{row.dynaCount}<small> trip</small></strong>
-                    </div>
-                    <div className="rekap-card-item">
-                      <span>Harga Fuso</span>
-                      <strong>{formatCurrency(row.fusoPrice)}</strong>
-                    </div>
-                    <div className="rekap-card-item">
-                      <span>Harga Dyna</span>
-                      <strong>{formatCurrency(row.dynaPrice)}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rekap-card-footer">
-                  <div className="rekap-card-foot-item">
-                    <span>Cumulative Harga</span>
-                    <strong>{formatCurrency(row.cumulativePrice)}</strong>
-                  </div>
-                  {(row.otherCount > 0) && (
-                    <div className="rekap-card-foot-item">
-                      <span>Tipe Lain</span>
-                      <strong>{row.otherCount}</strong>
-                    </div>
-                  )}
-                </div>
-              </article>
-            ))}
-            <article className="rekap-grand-total surface-card surface-card--accent">
-              <div className="rekap-grand-header">
-                <span className="section-kicker">Ringkasan Total</span>
-                <div className="rekap-grand-price">
-                  <span>Total Seluruh Harga</span>
-                  <strong>{formatCurrency(totals.totalPrice)}</strong>
-                </div>
-              </div>
-              <div className="rekap-grand-total-grid">
-                <div>
-                  <span>Jumlah Hari</span>
-                  <strong>{rows.length}</strong>
-                </div>
-                <div>
-                  <span>Total Retase Fuso</span>
-                  <strong>{totals.fusoCount}</strong>
-                </div>
-                <div>
-                  <span>Total Retase Dyna</span>
-                  <strong>{totals.dynaCount}</strong>
-                </div>
-                <div>
-                  <span>Harga Fuso</span>
-                  <strong>{formatCurrency(totals.fusoPrice)}</strong>
-                </div>
-                <div>
-                  <span>Harga Dyna</span>
-                  <strong>{formatCurrency(totals.dynaPrice)}</strong>
-                </div>
-              </div>
-            </article>
           </div>
         </>
       )}
