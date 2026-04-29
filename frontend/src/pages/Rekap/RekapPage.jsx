@@ -238,6 +238,21 @@ export default function RekapPage() {
       return;
     }
 
+    const currentFusoRate = Number(meta?.rates?.fuso || 0);
+    const currentDynaRate = Number(meta?.rates?.dyna || 0);
+
+    const exportRows = rows.map((row) => {
+      const fusoCumulativePrice = row.fusoCount * currentFusoRate;
+      const dynaCumulativePrice = row.dynaCount * currentDynaRate;
+
+      return {
+        ...row,
+        fusoCumulativePrice,
+        dynaCumulativePrice,
+        cumulativePrice: fusoCumulativePrice + dynaCumulativePrice,
+      };
+    });
+
     const header = [
       periodColumnLabel,
       dateColumnLabel,
@@ -245,18 +260,17 @@ export default function RekapPage() {
       'Checker Gate',
       'Retase Fuso',
       'Retase Dyna',
-      'Harga Fuso',
-      'Harga Dyna',
-      'Harga',
-      'Cumulative Harga',
+      'Kumulatif Fuso',
+      'Kumulatif Dyna',
+      'Kumulatif Harga',
     ];
 
     const exportTotals = {
-      fusoCount: rows.reduce((sum, r) => sum + r.fusoCount, 0),
-      dynaCount: rows.reduce((sum, r) => sum + r.dynaCount, 0),
-      fusoPrice: rows.reduce((sum, r) => sum + r.fusoPrice, 0),
-      dynaPrice: rows.reduce((sum, r) => sum + r.dynaPrice, 0),
-      totalPrice: rows.reduce((sum, r) => sum + r.totalPrice, 0),
+      fusoCount: exportRows.reduce((sum, r) => sum + r.fusoCount, 0),
+      dynaCount: exportRows.reduce((sum, r) => sum + r.dynaCount, 0),
+      fusoPrice: exportRows.reduce((sum, r) => sum + r.fusoCumulativePrice, 0),
+      dynaPrice: exportRows.reduce((sum, r) => sum + r.dynaCumulativePrice, 0),
+      totalPrice: exportRows.reduce((sum, r) => sum + r.cumulativePrice, 0),
     };
 
     const tableHtml = `
@@ -265,7 +279,9 @@ export default function RekapPage() {
         Mode: ${escapeHtml(periodOption.label)} |
         Periode: ${escapeHtml(dateRangeLabel)} |
         Lokasi: ${escapeHtml(meta?.locationOwner || 'Semua lokasi')} |
-        Kontraktor: ${escapeHtml(meta?.contractor || 'Semua kontraktor')}
+        Kontraktor: ${escapeHtml(meta?.contractor || 'Semua kontraktor')} |
+        Harga/Mobil Fuso: ${escapeHtml(formatCurrency(currentFusoRate))} |
+        Harga/Mobil Dyna: ${escapeHtml(formatCurrency(currentDynaRate))}
       </p>
       <table border="1">
         <thead>
@@ -274,7 +290,7 @@ export default function RekapPage() {
           </tr>
         </thead>
         <tbody>
-          ${rows
+          ${exportRows
             .map(
               (row) => `
             <tr>
@@ -284,9 +300,8 @@ export default function RekapPage() {
               <td>${escapeHtml(row.checkerGate)}</td>
               <td>${row.fusoCount}</td>
               <td>${row.dynaCount}</td>
-              <td>${escapeHtml(formatCurrency(row.fusoPrice))}</td>
-              <td>${escapeHtml(formatCurrency(row.dynaPrice))}</td>
-              <td>${escapeHtml(formatCurrency(row.totalPrice))}</td>
+              <td>${escapeHtml(formatCurrency(row.fusoCumulativePrice))}</td>
+              <td>${escapeHtml(formatCurrency(row.dynaCumulativePrice))}</td>
               <td>${escapeHtml(formatCurrency(row.cumulativePrice))}</td>
             </tr>
           `
@@ -299,7 +314,6 @@ export default function RekapPage() {
             <td>${escapeHtml(formatCurrency(exportTotals.fusoPrice))}</td>
             <td>${escapeHtml(formatCurrency(exportTotals.dynaPrice))}</td>
             <td>${escapeHtml(formatCurrency(exportTotals.totalPrice))}</td>
-            <td>-</td>
           </tr>
         </tbody>
       </table>
