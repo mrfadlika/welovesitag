@@ -354,10 +354,12 @@
 .workbook-log-wrap {
   display: block;
   overflow: hidden;
-  background: var(--table-wrap-bg);
+  background:
+    linear-gradient(180deg, rgba(251, 179, 36, 0.05) 0%, transparent 3.5rem),
+    linear-gradient(180deg, var(--color-bg-card) 0%, var(--color-bg-panel) 100%);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm), var(--table-wrap-inset-shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .riwayat-table {
@@ -381,8 +383,10 @@
 .riwayat-table th:nth-child(13) { width: 5%; }
 
 .riwayat-table thead {
-  background: var(--table-head-bg);
-  border-bottom: 1px solid var(--table-head-border);
+  background:
+    linear-gradient(180deg, rgba(251, 179, 36, 0.09) 0%, rgba(251, 179, 36, 0.02) 100%),
+    var(--color-bg-page-alt);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .riwayat-table th {
@@ -391,14 +395,14 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: var(--table-head-text);
+  color: var(--color-text-tertiary);
   text-align: left;
   white-space: nowrap;
 }
 
 .riwayat-table td {
   padding: 1rem 1.1rem;
-  border-top: 1px solid var(--table-cell-border);
+  border-top: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   vertical-align: middle;
   font-size: 0.9rem;
@@ -412,7 +416,7 @@
 }
 
 .riwayat-table tbody tr:hover {
-  background: var(--table-row-hover-bg);
+  background: rgba(251, 179, 36, 0.08);
 }
 
 .workbook-log-table th,

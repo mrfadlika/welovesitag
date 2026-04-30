@@ -17,10 +17,6 @@
   max-width: 100%;
 }
 
-.rekap-page--limited {
-  gap: var(--space-md);
-}
-
 /* ========== HERO HEADER ========== */
 .rekap-hero {
   display: flex;
@@ -118,14 +114,14 @@
 }
 
 .rekap-export-btn--pdf:hover {
-  background: var(--color-accent-danger-soft);
-  border-color: var(--color-accent-danger-border);
-  color: var(--color-accent-danger);
-  box-shadow: 0 8px 24px var(--color-accent-danger-soft);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.15);
 }
 
 .rekap-export-btn--pdf svg {
-  color: var(--color-accent-danger);
+  color: #ef4444;
 }
 
 .rekap-secondary-btn,
@@ -202,24 +198,11 @@
   align-items: start;
 }
 
-.rekap-top-grid--limited {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .rekap-filter-panel,
 .rekap-rates-panel {
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-}
-
-.rekap-role-info {
-  padding: var(--space-lg);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(180deg, var(--color-accent-secondary-soft) 0%, transparent 100%),
-    var(--color-bg-card);
 }
 
 .rekap-filter-header {
@@ -319,14 +302,10 @@
 
 .rekap-field-select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238fa3bb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234a5c72' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.9rem center;
   padding-right: 2.8rem;
-}
-
-:root[data-theme='light'] .rekap-field-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .rekap-meta-line {
@@ -362,40 +341,6 @@
   color: var(--color-text-primary);
 }
 
-.rekap-role-info-copy {
-  margin: 0.85rem 0 0;
-  color: var(--color-text-tertiary);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.rekap-role-info-list {
-  margin: 0.8rem 0 0;
-  padding-left: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  color: var(--color-text-secondary);
-  font-size: 0.84rem;
-}
-
-.rekap-role-info-list li {
-  line-height: 1.45;
-}
-
-.rekap-page--limited .summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.rekap-page--limited .rekap-note {
-  margin-top: -0.2rem;
-}
-
-.rekap-page--limited .rekap-table--non-admin th,
-.rekap-page--limited .rekap-table--non-admin td {
-  padding: 0.9rem 1rem;
-}
-
 /* ========== INFO NOTE ========== */
 .rekap-note {
   display: flex;
@@ -403,7 +348,7 @@
   gap: 0.7rem;
   padding: 1rem 1.2rem;
   background: var(--color-bg-card);
-  border: 1px solid var(--color-accent-secondary-soft);
+  border: 1px solid rgba(56, 189, 248, 0.15);
   border-radius: var(--radius-md);
 }
 
@@ -493,11 +438,6 @@
 .rekap-table th:nth-child(6) { width: 12%; }
 .rekap-table th:nth-child(7) { width: 12%; }
 
-.rekap-table--non-admin th:nth-child(1) { width: 16%; }
-.rekap-table--non-admin th:nth-child(2) { width: 24%; }
-.rekap-table--non-admin th:nth-child(3) { width: 34%; }
-.rekap-table--non-admin th:nth-child(4) { width: 26%; }
-
 .rekap-table th,
 .rekap-table td {
   padding: 1rem 1.1rem;
@@ -505,7 +445,9 @@
 }
 
 .rekap-table thead {
-  background: var(--table-head-bg);
+  background:
+    linear-gradient(180deg, rgba(251, 179, 36, 0.09) 0%, rgba(251, 179, 36, 0.02) 100%),
+    var(--color-bg-page-alt);
 }
 
 .rekap-table th {
@@ -514,12 +456,12 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--table-head-text);
-  border-bottom: 1px solid var(--table-head-border);
+  color: var(--color-text-tertiary);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .rekap-table td {
-  border-top: 1px solid var(--table-cell-border);
+  border-top: 1px solid var(--color-border);
   color: var(--color-text-secondary);
 }
 
@@ -560,7 +502,7 @@
 }
 
 .rekap-table tbody tr:hover {
-  background: var(--table-row-hover-bg);
+  background: rgba(251, 179, 36, 0.08);
 }
 
 .rekap-cell-stack {
@@ -770,10 +712,6 @@
   .rekap-rates-grid {
     grid-template-columns: 1fr;
   }
-
-  .rekap-page--limited .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 768px) {
@@ -794,8 +732,7 @@
 @media (max-width: 640px) {
   .rekap-hero,
   .rekap-filter-panel,
-  .rekap-rates-panel,
-  .rekap-role-info {
+  .rekap-rates-panel {
     padding: var(--space-lg);
   }
 
@@ -828,10 +765,6 @@
 
   .rekap-save-btn {
     width: 100%;
-  }
-
-  .rekap-page--limited .summary-grid {
-    grid-template-columns: 1fr;
   }
 }
 
