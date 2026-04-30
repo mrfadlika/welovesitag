@@ -178,13 +178,11 @@
 
 /* ========== TABLE ========== */
 .users-table-wrap {
-  background:
-    linear-gradient(180deg, rgba(251, 179, 36, 0.05) 0%, transparent 3.5rem),
-    linear-gradient(180deg, var(--color-bg-card) 0%, var(--color-bg-panel) 100%);
+  background: var(--table-wrap-bg);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--table-wrap-inset-shadow);
 }
 
 .users-table {
@@ -194,28 +192,26 @@
 
 .users-table th {
   padding: 1.1rem;
-  background:
-    linear-gradient(180deg, rgba(251, 179, 36, 0.09) 0%, rgba(251, 179, 36, 0.02) 100%),
-    var(--color-bg-page-alt);
+  background: var(--table-head-bg);
   text-align: left;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-text-tertiary);
-  border-bottom: 1px solid var(--color-border-strong);
+  color: var(--table-head-text);
+  border-bottom: 1px solid var(--table-head-border);
 }
 
 .users-table td {
   padding: 1.1rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--table-cell-border);
   vertical-align: middle;
   font-size: 0.92rem;
   color: var(--color-text-secondary);
 }
 
 .users-table tr:hover {
-  background: rgba(251, 179, 36, 0.08);
+  background: var(--table-row-hover-bg);
 }
 
 .user-cell-info {

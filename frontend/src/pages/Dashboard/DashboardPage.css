@@ -430,6 +430,23 @@
   min-width: 100%;
 }
 
+.dashboard-table.data-table thead {
+  background: var(--table-head-bg);
+}
+
+.dashboard-table.data-table th {
+  color: var(--table-head-text);
+  border-bottom: 1px solid var(--table-head-border);
+}
+
+.dashboard-table.data-table td {
+  border-bottom: 1px solid var(--table-cell-border);
+}
+
+.dashboard-table.data-table tbody tr:hover {
+  background: var(--table-row-hover-bg);
+}
+
 .dashboard-table-day {
   display: inline-flex;
   align-items: center;
