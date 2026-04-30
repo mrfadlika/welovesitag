@@ -170,6 +170,7 @@ export default function RekapPage() {
   const periodOption = useMemo(() => getPeriodOption(filters.period), [filters.period]);
   const periodColumnLabel = periodOption.rowLabel;
   const dateColumnLabel = periodOption.dateLabel;
+  const showAdminPriceColumns = isAdmin;
 
   const summary = useMemo(() => {
     const totalFuso = rows.reduce((sum, row) => sum + row.fusoCount, 0);
@@ -757,16 +758,20 @@ export default function RekapPage() {
       ) : (
         <>
           <div className="rekap-table-wrap data-table-wrap surface-card">
-            <table className="rekap-table data-table">
+            <table className={`rekap-table data-table ${showAdminPriceColumns ? 'rekap-table--admin' : 'rekap-table--basic'}`}>
               <thead>
                 <tr>
                   <th className="rekap-head rekap-head--period">Periode</th>
                   <th className="rekap-head rekap-head--date">Tanggal</th>
                   <th className="rekap-head rekap-head--checker">Checker</th>
                   <th className="rekap-head rekap-head--trip table-head-center">Retase</th>
-                  <th className="rekap-head rekap-head--rate table-head-right">Harga Satuan</th>
-                  <th className="rekap-head rekap-head--total table-head-right">Harga</th>
-                  <th className="rekap-head rekap-head--cumulative table-head-right">Cumulative Harga</th>
+                  {showAdminPriceColumns && (
+                    <>
+                      <th className="rekap-head rekap-head--rate table-head-right">Harga Satuan</th>
+                      <th className="rekap-head rekap-head--total table-head-right">Harga</th>
+                      <th className="rekap-head rekap-head--cumulative table-head-right">Cumulative Harga</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -805,25 +810,27 @@ export default function RekapPage() {
                         </span>
                       </div>
                     </td>
-                    <td data-label="Harga Satuan" className="rekap-cell rekap-cell--rate">
-                      <div className="table-stack rekap-cell-stack">
-                        <span className="rekap-metric-line">
-                          <span className="rekap-metric-label">Fuso</span>
-                          <span className="rekap-metric-value">{formatCurrency(row.fusoPrice)}</span>
-                        </span>
-                        <span className="rekap-metric-line">
-                          <span className="rekap-metric-label">Dyna</span>
-                          <span className="rekap-metric-value">{formatCurrency(row.dynaPrice)}</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td data-label="Harga" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">{formatCurrency(row.totalPrice)}</td>
-                    <td data-label="Cumulative Harga" className="rekap-cell rekap-cell--cumulative rekap-cumulative-price table-cell-right">{formatCurrency(row.cumulativePrice)}</td>
+                    {showAdminPriceColumns && (
+                      <>
+                        <td data-label="Harga Satuan" className="rekap-cell rekap-cell--rate">
+                          <div className="table-stack rekap-cell-stack">
+                            <span className="rekap-metric-line">
+                              <span className="rekap-metric-label">Fuso</span>
+                              <span className="rekap-metric-value">{formatCurrency(row.fusoPrice)}</span>
+                            </span>
+                            <span className="rekap-metric-line">
+                              <span className="rekap-metric-label">Dyna</span>
+                              <span className="rekap-metric-value">{formatCurrency(row.dynaPrice)}</span>
+                            </span>
+                          </div>
+                        </td>
+                        <td data-label="Harga" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">{formatCurrency(row.totalPrice)}</td>
+                        <td data-label="Cumulative Harga" className="rekap-cell rekap-cell--cumulative rekap-cumulative-price table-cell-right">{formatCurrency(row.cumulativePrice)}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-              </tfoot>
             </table>
           </div>
         </>

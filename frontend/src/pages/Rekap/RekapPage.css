@@ -422,6 +422,7 @@
 /* ========== TABLE ========== */
 .rekap-table-wrap {
   display: block;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -430,13 +431,18 @@
   border-collapse: collapse;
 }
 
-.rekap-table th:nth-child(1) { width: 11%; }
-.rekap-table th:nth-child(2) { width: 17%; }
-.rekap-table th:nth-child(3) { width: 15%; }
-.rekap-table th:nth-child(4) { width: 13%; }
-.rekap-table th:nth-child(5) { width: 20%; }
-.rekap-table th:nth-child(6) { width: 12%; }
-.rekap-table th:nth-child(7) { width: 12%; }
+.rekap-table--admin th:nth-child(1) { width: 11%; }
+.rekap-table--admin th:nth-child(2) { width: 17%; }
+.rekap-table--admin th:nth-child(3) { width: 15%; }
+.rekap-table--admin th:nth-child(4) { width: 13%; }
+.rekap-table--admin th:nth-child(5) { width: 20%; }
+.rekap-table--admin th:nth-child(6) { width: 12%; }
+.rekap-table--admin th:nth-child(7) { width: 12%; }
+
+.rekap-table--basic th:nth-child(1) { width: 16%; }
+.rekap-table--basic th:nth-child(2) { width: 22%; }
+.rekap-table--basic th:nth-child(3) { width: 30%; }
+.rekap-table--basic th:nth-child(4) { width: 32%; }
 
 .rekap-table th,
 .rekap-table td {
@@ -480,6 +486,10 @@
 
 .rekap-cell {
   vertical-align: middle;
+}
+
+.rekap-cell--checker {
+  overflow-wrap: anywhere;
 }
 
 .rekap-cell--period,
@@ -553,6 +563,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.rekap-cell--rate .rekap-metric-value,
+.rekap-total-price,
+.rekap-cumulative-price {
+  white-space: nowrap;
+}
+
 .rekap-total-price,
 .rekap-cumulative-price {
   color: var(--color-text-primary) !important;
@@ -565,10 +581,23 @@
   letter-spacing: 0.08em;
 }
 
-@media (min-width: 1024px) and (max-width: 1280px) {
+@media (min-width: 901px) {
+  .rekap-table-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
   .rekap-table.data-table {
     display: table;
     table-layout: fixed;
+  }
+
+  .rekap-table--admin.data-table {
+    min-width: 1040px;
+  }
+
+  .rekap-table--basic.data-table {
+    min-width: 760px;
   }
 
   .rekap-table.data-table thead {
@@ -711,6 +740,21 @@
   .rekap-filter-grid,
   .rekap-rates-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rekap-table.data-table td {
+    grid-template-columns: minmax(6.8rem, 35%) minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  .rekap-cell--trip .rekap-metric-line {
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .rekap-table.data-table td.rekap-cell--total,
+  .rekap-table.data-table td.rekap-cell--cumulative {
+    align-items: center;
   }
 }
 
