@@ -121,6 +121,7 @@ function getRowDateLabel(row, period) {
 export default function RekapPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isLimitedRole = user?.role === 'staff_pos' || user?.role === 'checker';
   const initialFilters = useMemo(
     () => ({
       period: DEFAULT_REKAP_PERIOD,
@@ -170,32 +171,36 @@ export default function RekapPage() {
   const periodOption = useMemo(() => getPeriodOption(filters.period), [filters.period]);
   const periodColumnLabel = periodOption.rowLabel;
   const dateColumnLabel = periodOption.dateLabel;
-  const showAdminPriceColumns = isAdmin;
 
   const summary = useMemo(() => {
     const totalFuso = rows.reduce((sum, row) => sum + row.fusoCount, 0);
     const totalDyna = rows.reduce((sum, row) => sum + row.dynaCount, 0);
-    const totalOther = rows.reduce((sum, row) => sum + row.otherCount, 0);
-    const totalPrice = rows.reduce((sum, row) => sum + row.totalPrice, 0);
-
-    return [
+    const nextSummary = [
       {
         label: `${periodOption.summaryLabel} Terekap`,
         value: rows.length,
         note: `Jumlah baris rekap ${periodOption.label.toLowerCase()}`,
       },
-      { label: 'Retase Fuso', value: totalFuso, note: 'Mengikuti parameter harga tetap' },
-      { label: 'Retase Dyna', value: totalDyna, note: 'Mengikuti parameter harga tetap' },
-      {
+      { label: 'Retase Fuso', value: totalFuso, note: 'Total ritase truk tipe Fuso' },
+      { label: 'Retase Dyna', value: totalDyna, note: 'Total ritase truk tipe Dyna' },
+    ];
+
+    if (isAdmin) {
+      const totalOther = rows.reduce((sum, row) => sum + row.otherCount, 0);
+      const totalPrice = rows.reduce((sum, row) => sum + row.totalPrice, 0);
+
+      nextSummary.push({
         label: 'Total Harga',
         value: formatCurrency(totalPrice),
         note:
           totalOther > 0
             ? `${totalOther} tipe lain tidak dihitung harga`
             : 'Semua harga terakumulasi',
-      },
-    ];
-  }, [periodOption.label, periodOption.summaryLabel, rows]);
+      });
+    }
+
+    return nextSummary;
+  }, [isAdmin, periodOption.label, periodOption.summaryLabel, rows]);
 
   const totals = useMemo(
     () => ({
@@ -462,14 +467,15 @@ export default function RekapPage() {
   };
 
   return (
-    <div className="rekap-page">
+    <div className={`rekap-page ${isLimitedRole ? 'rekap-page--limited' : ''}`}>
       <section className="rekap-hero surface-card surface-card--accent">
         <div className="rekap-hero-copy">
           <span className="section-kicker">Sheet Rekap</span>
           <h2>Rekap Data Retase</h2>
           <p>
-            Tabel ini bisa dibaca harian, mingguan, atau bulanan dan tetap mengikuti workbook: Periode, Tanggal, Checker Pit, Checker Gate,
-            Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.
+            {isAdmin
+              ? 'Tabel ini bisa dibaca harian, mingguan, atau bulanan dan tetap mengikuti workbook: Periode, Tanggal, Checker Pit, Checker Gate, Retase Fuso, Retase Dyna, Harga Fuso, Harga Dyna, Harga, dan Cumulative Harga.'
+              : 'Tabel ini bisa dibaca harian, mingguan, atau bulanan dengan fokus pada Periode, Tanggal, Checker, dan jumlah Retase.'}
           </p>
           <div className="rekap-hero-actions">
             {isAdmin && (
@@ -512,7 +518,7 @@ export default function RekapPage() {
         </div>
       </section>
 
-      <div className="rekap-top-grid">
+      <div className={`rekap-top-grid ${isLimitedRole ? 'rekap-top-grid--limited' : ''}`}>
         <div className="rekap-filter-panel surface-card">
           <div className="rekap-filter-header">
             <Filter size={16} />
@@ -645,12 +651,16 @@ export default function RekapPage() {
               <span>
                 Mode: <strong>{meta.periodLabel || periodOption.label}</strong>
               </span>
-              <span>
-                Harga Fuso: <strong>{formatCurrency(meta.rates?.fuso)}</strong>
-              </span>
-              <span>
-                Harga Dyna: <strong>{formatCurrency(meta.rates?.dyna)}</strong>
-              </span>
+              {isAdmin && (
+                <>
+                  <span>
+                    Harga Fuso: <strong>{formatCurrency(meta.rates?.fuso)}</strong>
+                  </span>
+                  <span>
+                    Harga Dyna: <strong>{formatCurrency(meta.rates?.dyna)}</strong>
+                  </span>
+                </>
+              )}
               <span>
                 Rentang tanggal: <strong>{dateRangeLabel}</strong>
               </span>
@@ -658,33 +668,51 @@ export default function RekapPage() {
           )}
         </div>
 
-        <section className="rekap-rates-panel surface-card">
-          <div className="rekap-filter-header">
-            <Wallet size={16} />
-            <strong>Parameter Harga</strong>
-            <span className="soft-badge">Terkunci</span>
-          </div>
-
-          <div className="rekap-rates-grid">
-            <div className="rekap-rate-lock-card">
-              <span>Harga Fuso</span>
-              <strong>{formatCurrency(meta?.rates?.fuso)}</strong>
-              <small>Parameter tetap sistem</small>
+        {isAdmin ? (
+          <section className="rekap-rates-panel surface-card">
+            <div className="rekap-filter-header">
+              <Wallet size={16} />
+              <strong>Parameter Harga</strong>
+              <span className="soft-badge">Terkunci</span>
             </div>
 
-            <div className="rekap-rate-lock-card">
-              <span>Harga Dyna</span>
-              <strong>{formatCurrency(meta?.rates?.dyna)}</strong>
-              <small>Parameter tetap sistem</small>
-            </div>
-          </div>
+            <div className="rekap-rates-grid">
+              <div className="rekap-rate-lock-card">
+                <span>Harga Fuso</span>
+                <strong>{formatCurrency(meta?.rates?.fuso)}</strong>
+                <small>Parameter tetap sistem</small>
+              </div>
 
-          <div className="rekap-rates-footer">
-            <span className="rekap-rates-note">
-              Harga retase dikunci dari aplikasi dan dipakai otomatis untuk dashboard, rekap, dan ekspor.
-            </span>
-          </div>
-        </section>
+              <div className="rekap-rate-lock-card">
+                <span>Harga Dyna</span>
+                <strong>{formatCurrency(meta?.rates?.dyna)}</strong>
+                <small>Parameter tetap sistem</small>
+              </div>
+            </div>
+
+            <div className="rekap-rates-footer">
+              <span className="rekap-rates-note">
+                Harga retase dikunci dari aplikasi dan dipakai otomatis untuk dashboard, rekap, dan ekspor.
+              </span>
+            </div>
+          </section>
+        ) : (
+          <section className="rekap-role-info surface-card">
+            <div className="rekap-filter-header">
+              <AlertCircle size={16} />
+              <strong>Akses Role</strong>
+              <span className="soft-badge">Terbatas</span>
+            </div>
+            <p className="rekap-role-info-copy">
+              Role ini difokuskan untuk monitoring operasional retase. Nilai harga dan parameter rupiah disembunyikan.
+            </p>
+            <ul className="rekap-role-info-list">
+              <li>Kolom tabel: Periode, Tanggal, Checker, dan Retase.</li>
+              <li>Panel parameter harga hanya tersedia untuk admin.</li>
+              <li>Gunakan filter periode, lokasi, dan kontraktor untuk audit ritase.</li>
+            </ul>
+          </section>
+        )}
       </div>
 
       <section className="summary-grid">
@@ -698,44 +726,47 @@ export default function RekapPage() {
       </section>
 
       <div className="rekap-note surface-card">
-        <strong>Tampilan rekap mengikuti pola fitur lain:</strong>
+        <strong>{isAdmin ? 'Tampilan rekap mengikuti pola fitur lain:' : 'Fokus data role ini:'}</strong>
         <span>
-          Pilih mode harian, mingguan, atau bulanan lalu gunakan filter untuk mempersempit data. Data sekarang
-          ditampilkan penuh dalam bentuk tabel agar konsisten antar fitur.
+          {isAdmin
+            ? 'Pilih mode harian, mingguan, atau bulanan lalu gunakan filter untuk mempersempit data. Data sekarang ditampilkan penuh dalam bentuk tabel agar konsisten antar fitur.'
+            : 'Gunakan mode harian, mingguan, atau bulanan lalu filter sesuai kebutuhan untuk memantau ritase tanpa komponen harga.'}
         </span>
       </div>
 
-                <article className="rekap-grand-total surface-card surface-card--accent">
-            <div className="rekap-grand-header">
-              <span className="section-kicker">Ringkasan Total</span>
-              <div className="rekap-grand-price">
-                <span>Total Seluruh Harga</span>
-                <strong>{formatCurrency(totals.totalPrice)}</strong>
-              </div>
+      {isAdmin && (
+        <article className="rekap-grand-total surface-card surface-card--accent">
+          <div className="rekap-grand-header">
+            <span className="section-kicker">Ringkasan Total</span>
+            <div className="rekap-grand-price">
+              <span>Total Seluruh Harga</span>
+              <strong>{formatCurrency(totals.totalPrice)}</strong>
             </div>
-            <div className="rekap-grand-total-grid">
-              <div>
-                <span>Jumlah Hari</span>
-                <strong>{rows.length}</strong>
-              </div>
-              <div>
-                <span>Total Retase Fuso</span>
-                <strong>{totals.fusoCount}</strong>
-              </div>
-              <div>
-                <span>Total Retase Dyna</span>
-                <strong>{totals.dynaCount}</strong>
-              </div>
-              <div>
-                <span>Harga Fuso</span>
-                <strong>{formatCurrency(totals.fusoPrice)}</strong>
-              </div>
-              <div>
-                <span>Harga Dyna</span>
-                <strong>{formatCurrency(totals.dynaPrice)}</strong>
-              </div>
+          </div>
+          <div className="rekap-grand-total-grid">
+            <div>
+              <span>Jumlah Hari</span>
+              <strong>{rows.length}</strong>
             </div>
-          </article>
+            <div>
+              <span>Total Retase Fuso</span>
+              <strong>{totals.fusoCount}</strong>
+            </div>
+            <div>
+              <span>Total Retase Dyna</span>
+              <strong>{totals.dynaCount}</strong>
+            </div>
+            <div>
+              <span>Harga Fuso</span>
+              <strong>{formatCurrency(totals.fusoPrice)}</strong>
+            </div>
+            <div>
+              <span>Harga Dyna</span>
+              <strong>{formatCurrency(totals.dynaPrice)}</strong>
+            </div>
+          </div>
+        </article>
+      )}
 
       {isLoading ? (
         <div className="empty-state-panel">
@@ -758,14 +789,14 @@ export default function RekapPage() {
       ) : (
         <>
           <div className="rekap-table-wrap data-table-wrap surface-card">
-            <table className={`rekap-table data-table ${showAdminPriceColumns ? 'rekap-table--admin' : 'rekap-table--basic'}`}>
+            <table className={`rekap-table data-table ${!isAdmin ? 'rekap-table--non-admin' : ''}`}>
               <thead>
                 <tr>
                   <th className="rekap-head rekap-head--period">Periode</th>
                   <th className="rekap-head rekap-head--date">Tanggal</th>
                   <th className="rekap-head rekap-head--checker">Checker</th>
                   <th className="rekap-head rekap-head--trip table-head-center">Retase</th>
-                  {showAdminPriceColumns && (
+                  {isAdmin && (
                     <>
                       <th className="rekap-head rekap-head--rate table-head-right">Harga Satuan</th>
                       <th className="rekap-head rekap-head--total table-head-right">Harga</th>
@@ -810,7 +841,7 @@ export default function RekapPage() {
                         </span>
                       </div>
                     </td>
-                    {showAdminPriceColumns && (
+                    {isAdmin && (
                       <>
                         <td data-label="Harga Satuan" className="rekap-cell rekap-cell--rate">
                           <div className="table-stack rekap-cell-stack">
@@ -831,6 +862,8 @@ export default function RekapPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+              </tfoot>
             </table>
           </div>
         </>

@@ -533,13 +533,6 @@ router.patch('/:id/verify', async (req, res, next) => {
       });
     }
 
-    if (checkout.status !== 'ready_for_exit') {
-      return res.status(400).json({
-        success: false,
-        message: 'Data retase tidak berada dalam antrean verifikasi gate',
-      });
-    }
-
     const verifiedAt = new Date();
     const verifierName = normalizeText(verifiedBy) || 'Unknown';
 

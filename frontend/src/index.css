@@ -60,6 +60,59 @@
   --color-accent-danger-soft:    rgba(248, 113, 113, 0.12);
   --color-accent-danger-border:  rgba(248, 113, 113, 0.3);
 
+  /* === DATA TABLE TOKENS (DARK) === */
+  --table-wrap-bg:
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.08) 0%, transparent 24%),
+    linear-gradient(180deg, rgba(251, 179, 36, 0.08) 0%, rgba(56, 189, 248, 0.025) 18%, transparent 4.8rem),
+    linear-gradient(180deg, rgba(19, 28, 44, 0.98) 0%, rgba(14, 22, 38, 0.98) 100%);
+  --table-wrap-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --table-wrap-top-line: linear-gradient(
+    90deg,
+    rgba(251, 179, 36, 0.85) 0%,
+    rgba(56, 189, 248, 0.68) 50%,
+    rgba(251, 179, 36, 0.25) 100%
+  );
+  --table-wrap-bottom-line: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(148, 163, 184, 0.12) 18%,
+    rgba(148, 163, 184, 0.2) 50%,
+    rgba(148, 163, 184, 0.12) 82%,
+    transparent 100%
+  );
+  --table-head-bg:
+    linear-gradient(180deg, rgba(251, 179, 36, 0.08) 0%, rgba(56, 189, 248, 0.03) 100%),
+    rgba(9, 16, 29, 0.94);
+  --table-head-border: rgba(148, 163, 184, 0.18);
+  --table-head-inner-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  --table-cell-border: rgba(148, 163, 184, 0.12);
+  --table-head-text: rgba(240, 244, 255, 0.92);
+  --table-cell-bg: rgba(255, 255, 255, 0.01);
+  --table-row-odd-bg: rgba(255, 255, 255, 0.008);
+  --table-row-even-bg: rgba(148, 163, 184, 0.025);
+  --table-row-hover-bg: rgba(251, 179, 36, 0.06);
+  --table-row-hover-cell-bg: linear-gradient(
+    90deg,
+    rgba(251, 179, 36, 0.12) 0%,
+    rgba(251, 179, 36, 0.045) 100%
+  );
+  --table-row-hover-accent: rgba(251, 179, 36, 0.7);
+  --table-foot-bg:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0.03) 100%),
+    rgba(15, 23, 42, 0.92);
+  --table-foot-border: rgba(56, 189, 248, 0.12);
+  --table-code-bg: rgba(251, 179, 36, 0.12);
+  --table-code-border: rgba(251, 179, 36, 0.18);
+  --table-mobile-row-border: rgba(148, 163, 184, 0.14);
+  --table-mobile-row-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(148, 163, 184, 0.02) 100%),
+    var(--color-bg-page-alt);
+  --table-mobile-row-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  --table-mobile-cell-border: rgba(148, 163, 184, 0.12);
+  --table-mobile-label-bg: rgba(255, 255, 255, 0.03);
+  --table-mobile-label-border: rgba(148, 163, 184, 0.16);
+  --table-mobile-label-text: rgba(203, 213, 225, 0.76);
+
   /* === CONSTANT GRADIENTS === */
   --gradient-primary:   linear-gradient(135deg, #fbb324 0%, #f59e0b 50%, #d97706 100%);
   --gradient-secondary: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
@@ -139,6 +192,58 @@
   --color-accent-success-soft:   rgba(34, 197, 94, 0.1);
   --color-accent-warning-soft:   rgba(251, 146, 60, 0.1);
   --color-accent-danger-soft:    rgba(248, 113, 113, 0.1);
+
+  --table-wrap-bg:
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.1) 0%, transparent 26%),
+    linear-gradient(180deg, rgba(251, 179, 36, 0.14) 0%, rgba(56, 189, 248, 0.06) 16%, transparent 5rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.96) 100%);
+  --table-wrap-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --table-wrap-top-line: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.62) 0%,
+    rgba(14, 165, 233, 0.5) 50%,
+    rgba(245, 158, 11, 0.2) 100%
+  );
+  --table-wrap-bottom-line: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(100, 116, 139, 0.18) 18%,
+    rgba(100, 116, 139, 0.3) 50%,
+    rgba(100, 116, 139, 0.18) 82%,
+    transparent 100%
+  );
+  --table-head-bg:
+    linear-gradient(180deg, rgba(251, 179, 36, 0.16) 0%, rgba(56, 189, 248, 0.08) 100%),
+    rgba(255, 255, 255, 0.98);
+  --table-head-border: rgba(100, 116, 139, 0.24);
+  --table-head-inner-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.06);
+  --table-cell-border: rgba(100, 116, 139, 0.2);
+  --table-head-text: rgba(51, 65, 85, 0.88);
+  --table-cell-bg: rgba(255, 255, 255, 0.75);
+  --table-row-odd-bg: rgba(255, 255, 255, 0.64);
+  --table-row-even-bg: rgba(148, 163, 184, 0.08);
+  --table-row-hover-bg: rgba(251, 179, 36, 0.12);
+  --table-row-hover-cell-bg: linear-gradient(
+    90deg,
+    rgba(251, 179, 36, 0.18) 0%,
+    rgba(251, 179, 36, 0.08) 100%
+  );
+  --table-row-hover-accent: rgba(245, 158, 11, 0.9);
+  --table-foot-bg:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.13) 0%, rgba(56, 189, 248, 0.05) 100%),
+    rgba(255, 255, 255, 0.98);
+  --table-foot-border: rgba(56, 189, 248, 0.2);
+  --table-code-bg: rgba(251, 179, 36, 0.16);
+  --table-code-border: rgba(251, 179, 36, 0.24);
+  --table-mobile-row-border: rgba(100, 116, 139, 0.22);
+  --table-mobile-row-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(241, 245, 249, 0.95) 100%),
+    var(--color-bg-card);
+  --table-mobile-row-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --table-mobile-cell-border: rgba(100, 116, 139, 0.18);
+  --table-mobile-label-bg: rgba(100, 116, 139, 0.12);
+  --table-mobile-label-border: rgba(100, 116, 139, 0.24);
+  --table-mobile-label-text: rgba(51, 65, 85, 0.82);
 }
 
 
