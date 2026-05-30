@@ -12,6 +12,8 @@ const truckRoutes = require('./routes/trucks');
 const checkoutRoutes = require('./routes/checkouts');
 const userRoutes = require('./routes/users');
 const settingsRoutes = require('./routes/settings');
+const { startRekapAutoExportScheduler } = require('./utils/rekap-auto-export');
+const { bootstrapDefaultUsers } = require('./utils/bootstrap-default-users');
 
 // Init app
 const app = express();
@@ -90,13 +92,26 @@ app.use((req, res) => {
 });
 
 // ============ START SERVER ============
-app.listen(port, host, () => {
-  console.log(`\n[OK] SITAG Backend Server running on port ${port}`);
-  console.log(`[OK] http://localhost:${port}`);
-  console.log(`[OK] API Docs:`);
-  console.log('  - POST /api/auth/login - User login');
-  console.log('  - GET  /api/trucks - Get all trucks');
-  console.log('  - POST /api/trucks - Create truck entry');
-  console.log('  - GET  /api/checkouts - Get all checkouts');
-  console.log('  - POST /api/checkouts - Create checkout entry\n');
-});
+async function startServer() {
+  try {
+    await bootstrapDefaultUsers();
+  } catch (error) {
+    console.error('[ERROR] Failed to bootstrap default users:', error);
+    process.exit(1);
+  }
+
+  app.listen(port, host, () => {
+    console.log(`\n[OK] SITAG Backend Server running on port ${port}`);
+    console.log(`[OK] http://localhost:${port}`);
+    console.log(`[OK] API Docs:`);
+    console.log('  - POST /api/auth/login - User login');
+    console.log('  - GET  /api/trucks - Get all trucks');
+    console.log('  - POST /api/trucks - Create truck entry');
+    console.log('  - GET  /api/checkouts - Get all checkouts');
+    console.log('  - POST /api/checkouts - Create checkout entry\n');
+
+    startRekapAutoExportScheduler();
+  });
+}
+
+startServer();

@@ -9,8 +9,6 @@ import {
   FileDown,
   FileText,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
 import { checkoutAPI } from '../../services/api';
@@ -121,6 +119,8 @@ function getRowDateLabel(row, period) {
 export default function RekapPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isStaffPos = user?.role === 'staff_pos';
+  const canExportPdf = isAdmin || isStaffPos;
   const isLimitedRole = user?.role === 'staff_pos' || user?.role === 'checker';
   const initialFilters = useMemo(
     () => ({
@@ -139,6 +139,7 @@ export default function RekapPage() {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [error, setError] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
 
@@ -244,6 +245,20 @@ export default function RekapPage() {
       return;
     }
 
+    const selectedLocation = meta?.locationOwner || 'Semua lokasi';
+    const selectedContractor = meta?.contractor || 'Semua kontraktor';
+    const exportConfirmationMessage =
+      `Export Excel akan menggunakan filter Rekap yang dipilih:\n` +
+      `- Mode: ${periodOption.label}\n` +
+      `- Periode: ${dateRangeLabel}\n` +
+      `- Lokasi: ${selectedLocation}\n` +
+      `- Kontraktor: ${selectedContractor}\n\n` +
+      'Lanjutkan export?';
+
+    if (!window.confirm(exportConfirmationMessage)) {
+      return;
+    }
+
     const currentFusoRate = Number(meta?.rates?.fuso || 0);
     const currentDynaRate = Number(meta?.rates?.dyna || 0);
 
@@ -284,8 +299,8 @@ export default function RekapPage() {
       <p>
         Mode: ${escapeHtml(periodOption.label)} |
         Periode: ${escapeHtml(dateRangeLabel)} |
-        Lokasi: ${escapeHtml(meta?.locationOwner || 'Semua lokasi')} |
-        Kontraktor: ${escapeHtml(meta?.contractor || 'Semua kontraktor')} |
+        Lokasi: ${escapeHtml(selectedLocation)} |
+        Kontraktor: ${escapeHtml(selectedContractor)} |
         Harga/Mobil Fuso: ${escapeHtml(formatCurrency(currentFusoRate))} |
         Harga/Mobil Dyna: ${escapeHtml(formatCurrency(currentDynaRate))}
       </p>
@@ -341,129 +356,44 @@ export default function RekapPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleExportPDF = () => {
-    if (!isAdmin || rows.length === 0) {
+  const handleExportPDF = async () => {
+    if (!canExportPdf || isExportingPdf) {
       return;
     }
 
-    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape A4
-    const pageWidth = doc.internal.pageSize.getWidth();
+    setIsExportingPdf(true);
 
-    // Judul Utama
-    doc.setFontSize(18);
-    doc.setTextColor(40, 40, 40);
-    doc.text('NOTA REKAPITULASI RETASE', pageWidth / 2, 15, { align: 'center' });
+    try {
+      const result = await checkoutAPI.downloadRekapNotaToday({
+        locationOwner: filters.locationOwner || undefined,
+        contractor: filters.contractor || undefined,
+        exportedBy: user?.name || 'Admin',
+      });
 
-    // Garis Pemisah
-    doc.setLineWidth(0.5);
-    doc.line(14, 18, pageWidth - 14, 18);
+      if (!result.success) {
+        setError(result.message || 'Gagal mengekspor nota harian');
+        return;
+      }
 
-    // Informasi Metadata
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Mode Rekap: ${periodOption.label}`, 14, 25);
-    doc.text(`Periode: ${dateRangeLabel}`, 14, 30);
-    doc.text(`Lokasi: ${meta?.locationOwner || 'Semua lokasi'}`, 14, 35);
-    doc.text(`Kontraktor: ${meta?.contractor || 'Semua kontraktor'}`, 14, 40);
+      const pdfBlob = result.data?.blob;
+      const fileName = result.data?.fileName || `Nota_Rekap_Retase_daily_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, pageWidth - 14, 25, { align: 'right' });
-    doc.text(`Oleh: ${user?.name || 'Admin'}`, pageWidth - 14, 30, { align: 'right' });
+      if (!pdfBlob) {
+        setError('Gagal mengekspor nota harian: file PDF kosong');
+        return;
+      }
 
-    // Tabel Data
-    const tableHeader = [[
-      periodColumnLabel,
-      dateColumnLabel,
-      'Checker Pit',
-      'Checker Gate',
-      'Fuso',
-      'Dyna'
-    ]];
-
-    const tableBody = rows.map((row) => [
-      row.day,
-      getRowDateLabel(row, filters.period),
-      row.checkerPit,
-      row.checkerGate,
-      row.fusoCount,
-      row.dynaCount,
-      formatCurrency(row.fusoPrice),
-      formatCurrency(row.dynaPrice),
-      formatCurrency(row.totalPrice),
-      formatCurrency(row.cumulativePrice)
-    ]);
-
-    autoTable(doc, {
-      startY: 45,
-      head: tableHeader,
-      body: tableBody,
-      foot: [[
-        'TOTAL KESELURUHAN',
-        '',
-        '',
-        '',
-        totals.fusoCount,
-        totals.dynaCount,
-        formatCurrency(totals.fusoPrice),
-        formatCurrency(totals.dynaPrice),
-        formatCurrency(totals.totalPrice),
-        '-'
-      ]],
-      theme: 'grid',
-      headStyles: {
-        fillColor: [241, 196, 15], // Kuning SITAG
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      footStyles: {
-        fillColor: [245, 245, 245],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      columnStyles: {
-        0: { halign: 'center' },
-        1: { halign: 'center' },
-        4: { halign: 'center' },
-        5: { halign: 'center' },
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { halign: 'right' },
-        9: { halign: 'right' },
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 2
-      },
-      margin: { top: 45 }
-    });
-
-    // Bagian Tanda Tangan (Hanya Kontraktor)
-    let finalY = doc.lastAutoTable.finalY + 25;
-
-    // Jika mepet ke bawah, tambah halaman baru
-    if (finalY + 40 > doc.internal.pageSize.getHeight()) {
-      doc.addPage();
-      finalY = 20;
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (exportError) {
+      setError(`Gagal mengekspor nota harian: ${exportError.message}`);
+    } finally {
+      setIsExportingPdf(false);
     }
-
-    const signatureBoxWidth = 60;
-    const rightMargin = 14;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-
-    // Posisi tanda tangan di kanan bawah
-    const posX = pageWidth - signatureBoxWidth - rightMargin;
-    doc.text('Tanda Tangan,', posX + (signatureBoxWidth / 2), finalY, { align: 'center' });
-    
-    doc.line(posX, finalY + 20, posX + signatureBoxWidth, finalY + 20);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text(meta?.contractor || 'Kontraktor', posX + (signatureBoxWidth / 2), finalY + 25, { align: 'center' });
-
-    // Simpan File
-    doc.save(`Nota_Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
@@ -479,28 +409,32 @@ export default function RekapPage() {
           </p>
           <div className="rekap-hero-actions">
             {isAdmin && (
-              <>
-                <button
-                  className="rekap-export-btn"
-                  type="button"
-                  onClick={handleExportExcel}
-                  disabled={isLoading || rows.length === 0}
-                  title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh rekap ${periodOption.label.toLowerCase()} ke Excel`}
-                >
-                  <FileDown size={18} />
-                  <span>Ekspor ke Excel</span>
-                </button>
-                <button
-                  className="rekap-export-btn rekap-export-btn--pdf"
-                  type="button"
-                  onClick={handleExportPDF}
-                  disabled={isLoading || rows.length === 0}
-                  title={rows.length === 0 ? 'Tidak ada data untuk diekspor' : `Unduh nota rekap ${periodOption.label.toLowerCase()} ke PDF`}
-                >
-                  <FileText size={18} />
-                  <span>Ekspor Nota (PDF)</span>
-                </button>
-              </>
+              <button
+                className="rekap-export-btn"
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isLoading || rows.length === 0}
+                title={
+                  rows.length === 0
+                    ? 'Tidak ada data untuk diekspor'
+                    : `Export Excel berdasarkan filter rekap aktif (${periodOption.label.toLowerCase()})`
+                }
+              >
+                <FileDown size={18} />
+                <span>Ekspor ke Excel</span>
+              </button>
+            )}
+            {canExportPdf && (
+              <button
+                className="rekap-export-btn rekap-export-btn--pdf"
+                type="button"
+                onClick={handleExportPDF}
+                disabled={isLoading || isExportingPdf}
+                title="Unduh nota rekap harian (hanya data hari ini) ke PDF"
+              >
+                <FileText size={18} />
+                <span>{isExportingPdf ? 'Mengekspor Nota...' : 'Ekspor Nota (PDF)'}</span>
+              </button>
             )}
             <button
               className="rekap-secondary-btn"
@@ -668,7 +602,7 @@ export default function RekapPage() {
           )}
         </div>
 
-        {isAdmin ? (
+        {isAdmin && (
           <section className="rekap-rates-panel surface-card">
             <div className="rekap-filter-header">
               <Wallet size={16} />
@@ -695,22 +629,6 @@ export default function RekapPage() {
                 Harga retase dikunci dari aplikasi dan dipakai otomatis untuk dashboard, rekap, dan ekspor.
               </span>
             </div>
-          </section>
-        ) : (
-          <section className="rekap-role-info surface-card">
-            <div className="rekap-filter-header">
-              <AlertCircle size={16} />
-              <strong>Akses Role</strong>
-              <span className="soft-badge">Terbatas</span>
-            </div>
-            <p className="rekap-role-info-copy">
-              Role ini difokuskan untuk monitoring operasional retase. Nilai harga dan parameter rupiah disembunyikan.
-            </p>
-            <ul className="rekap-role-info-list">
-              <li>Kolom tabel: Periode, Tanggal, Checker, dan Retase.</li>
-              <li>Panel parameter harga hanya tersedia untuk admin.</li>
-              <li>Gunakan filter periode, lokasi, dan kontraktor untuk audit ritase.</li>
-            </ul>
           </section>
         )}
       </div>

@@ -138,6 +138,49 @@ export const checkoutAPI = {
     const response = await fetch(`${API_BASE_URL}/checkouts/rekap${query}`);
     return handleResponse(response);
   },
+
+  // Download PDF nota rekap harian (hari ini)
+  downloadRekapNotaToday: async (filters = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        params.append(key, value);
+      }
+    });
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/checkouts/rekap/export-nota-today${query}`);
+
+    if (!response.ok) {
+      const rawBody = await response.text();
+      let parsedBody = null;
+
+      try {
+        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        parsedBody = null;
+      }
+
+      return {
+        success: false,
+        message: parsedBody?.message || rawBody || `Error ${response.status}`,
+        status: response.status,
+      };
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('content-disposition') || '';
+    const fileNameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+
+    return {
+      success: true,
+      data: {
+        blob,
+        fileName: fileNameMatch?.[1] || `Nota_Rekap_Retase_daily_${new Date().toISOString().slice(0, 10)}.pdf`,
+      },
+    };
+  },
 };
 
 // ============ USER ENDPOINTS (Admin only) ============

@@ -3,6 +3,11 @@ const prisma = require('../lib/prisma');
 const { getNextCode } = require('../utils/id-generator');
 const { serializeCheckout } = require('../utils/serializers');
 const { getRetaseRates } = require('../utils/settings');
+const {
+  DEFAULT_REKAP_EXPORT_TIMEZONE,
+  generateDailyNota,
+  getDateKeyInTimeZone,
+} = require('../utils/rekap-nota');
 
 const router = express.Router();
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -349,6 +354,28 @@ router.get('/rekap', async (req, res, next) => {
         },
       },
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/rekap/export-nota-today', async (req, res, next) => {
+  try {
+    const { locationOwner, contractor, exportedBy } = req.query;
+    const requestedDate = getDateKeyInTimeZone(new Date(), DEFAULT_REKAP_EXPORT_TIMEZONE);
+
+    const result = await generateDailyNota({
+      dateKey: requestedDate,
+      locationOwner: normalizeText(locationOwner) || '',
+      contractor: normalizeText(contractor) || '',
+      exportedBy: normalizeText(exportedBy) || 'Admin',
+      timeZone: DEFAULT_REKAP_EXPORT_TIMEZONE,
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+
+    return res.status(200).send(result.buffer);
   } catch (error) {
     return next(error);
   }
