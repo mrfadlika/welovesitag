@@ -59,10 +59,20 @@ export const truckAPI = {
     return handleResponse(response);
   },
 
-  // Create/register new truck (Staff POS)
+  // Create/register new truck
   create: async (truckData) => {
     const response = await fetch(`${API_BASE_URL}/trucks`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(truckData),
+    });
+    return handleResponse(response);
+  },
+
+  // Update truck data
+  update: async (id, truckData) => {
+    const response = await fetch(`${API_BASE_URL}/trucks/${id}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(truckData),
     });
@@ -75,6 +85,14 @@ export const truckAPI = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, updatedBy }),
+    });
+    return handleResponse(response);
+  },
+
+  // Delete truck
+  remove: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/trucks/${id}`, {
+      method: 'DELETE',
     });
     return handleResponse(response);
   },
@@ -115,13 +133,22 @@ export const checkoutAPI = {
   },
 
   // Verify checkout (Staff POS approval)
-  verify: async (id, verifiedBy, approved) => {
+  verify: async (id, verifiedBy, approved, action = null) => {
+    const body = { verifiedBy, approved };
+    if (action) body.action = action;
     const response = await fetch(`${API_BASE_URL}/checkouts/${id}/verify`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ verifiedBy, approved }),
+      body: JSON.stringify(body),
     });
     return handleResponse(response);
+  },
+
+  // Get pending count for notifications
+  getPendingCount: async () => {
+    const response = await fetch(`${API_BASE_URL}/checkouts?status=ready_for_exit`);
+    const result = await handleResponse(response);
+    return result.success ? (result.count || result.data?.length || 0) : 0;
   },
 
   // Get rekap retase summary
@@ -214,6 +241,18 @@ export const userAPI = {
 export const settingsAPI = {
   getRates: async () => {
     const response = await fetch(`${API_BASE_URL}/settings/rates`);
+    return handleResponse(response);
+  },
+  updateRates: async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/settings/rates`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  getDynamicOptions: async () => {
+    const response = await fetch(`${API_BASE_URL}/settings/dynamic-options`);
     return handleResponse(response);
   },
 };

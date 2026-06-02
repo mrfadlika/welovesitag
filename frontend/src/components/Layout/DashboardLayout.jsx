@@ -15,19 +15,24 @@ import {
   Truck,
   HardHat,
   Users,
+  Bell,
 } from 'lucide-react';
 import './DashboardLayout.css';
 import logo from '../../assets/logo.png';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
+import { checkoutAPI } from '../../services/api';
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [clockTime, setClockTime] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
   const clockIntervalRef = useRef(null);
+  const pendingIntervalRef = useRef(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isStaffPos = user?.role === 'staff_pos';
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -59,6 +64,24 @@ export default function DashboardLayout({ children }) {
     clockIntervalRef.current = setInterval(updateClock, 1000);
     return () => clearInterval(clockIntervalRef.current);
   }, []);
+
+  // Notification polling for staff_pos
+  useEffect(() => {
+    if (!isStaffPos) return;
+
+    const fetchPending = async () => {
+      try {
+        const count = await checkoutAPI.getPendingCount();
+        setPendingCount(count);
+      } catch {
+        // silently ignore
+      }
+    };
+
+    fetchPending();
+    pendingIntervalRef.current = setInterval(fetchPending, 30000);
+    return () => clearInterval(pendingIntervalRef.current);
+  }, [isStaffPos]);
 
   const closeSidebar = () => {
     setSidebarOpen(false);
@@ -114,6 +137,7 @@ export default function DashboardLayout({ children }) {
       return [
         { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
         { to: '/admin/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
+        { to: '/admin/registrasi-mobil', icon: <Truck size={20} />, label: 'Registrasi Mobil' },
         {
           to: '/admin/verifikasi',
           icon: <CheckCircle2 size={20} />,
@@ -136,7 +160,7 @@ export default function DashboardLayout({ children }) {
 
     return [
       { to: '/staff', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
-      { to: '/staff/verifikasi', icon: <CheckCircle2 size={20} />, label: 'Verifikasi Keluar' },
+      { to: '/staff/verifikasi', icon: <CheckCircle2 size={20} />, label: 'Verifikasi Keluar', badge: pendingCount },
       { to: '/staff/riwayat', icon: <History size={20} />, label: 'Riwayat Retase' },
       { to: '/staff/rekap', icon: <History size={20} />, label: 'Rekap Retase' },
     ];
@@ -146,6 +170,10 @@ export default function DashboardLayout({ children }) {
 
   const getPageTitle = () => {
     const path = location.pathname;
+
+    if (path.includes('/registrasi-mobil')) {
+      return 'Registrasi Mobil';
+    }
 
     if (path.includes('/pengguna')) {
       return 'Kelola Pengguna';
@@ -172,6 +200,10 @@ export default function DashboardLayout({ children }) {
 
   const getPageDescription = () => {
     const path = location.pathname;
+
+    if (path.includes('/registrasi-mobil')) {
+      return 'Daftarkan dump truck baru: nomor lambung, id alat, no polisi, tipe, dan pemilik alat.';
+    }
 
     if (path.includes('/pengguna')) {
       return 'Tambah, lihat, dan kelola akun pengguna sistem retase tambang.';
@@ -270,6 +302,9 @@ export default function DashboardLayout({ children }) {
                     <span className="nav-label">{item.label}</span>
                     <span className="nav-hint">Buka halaman</span>
                   </span>
+                )}
+                {item.badge > 0 && (
+                  <span className="nav-badge">{item.badge > 99 ? '99+' : item.badge}</span>
                 )}
               </NavLink>
             ))}

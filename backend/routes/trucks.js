@@ -51,6 +51,10 @@ router.post('/', async (req, res, next) => {
     const {
       truckNumber,
       truckType,
+      hullNumber,
+      equipmentId,
+      ownerName,
+      notes,
       photo,
       registeredBy,
       registeredByRole,
@@ -66,38 +70,28 @@ router.post('/', async (req, res, next) => {
     }
 
     const normalizedTruckNumber = truckNumber.toUpperCase();
-    const existingTruck = await prisma.truck.findFirst({
-      where: {
-        truckNumber: normalizedTruckNumber,
-        status: { not: 'exited' },
-      },
-      orderBy: { registeredAt: 'desc' },
-    });
-
-    if (existingTruck) {
-      return res.status(400).json({
-        success: false,
-        message: 'Truck sudah terdaftar dan belum keluar',
-        existingId: existingTruck.code,
-      });
-    }
+    const normalizedHullNumber = hullNumber ? String(hullNumber).trim() : null;
 
     const newTruck = await prisma.truck.create({
       data: {
         code: await getNextCode(prisma.truck, 'TRK'),
         truckNumber: normalizedTruckNumber,
         truckType,
-        truckTypeLabel: truckType === 'dyna' ? 'Dyna' : 'Fuso',
+        truckTypeLabel: truckType === 'dyna' ? 'Dyna' : truckType === 'fuso' ? 'Fuso' : truckType,
+        hullNumber: normalizedHullNumber,
+        equipmentId: equipmentId ? String(equipmentId).trim() : null,
+        ownerName: ownerName ? String(ownerName).trim() : null,
+        notes: notes ? String(notes).trim() : null,
         registeredBy: registeredBy || createdBy || 'Unknown',
-        registeredByRole: registeredByRole || createdByRole || 'Staff Pos',
-        status: 'entered',
+        registeredByRole: registeredByRole || createdByRole || 'Admin',
+        status: 'registered',
         photo: photo || null,
       },
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Truck berhasil didaftarkan masuk',
+      message: 'Dump truck berhasil didaftarkan',
       data: serializeTruck(newTruck),
     });
   } catch (error) {
@@ -133,6 +127,92 @@ router.patch('/:id/status', async (req, res, next) => {
       success: true,
       message: 'Status truck berhasil diperbarui',
       data: serializeTruck(updatedTruck),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.put('/:id', async (req, res, next) => {
+  try {
+    const {
+      truckNumber,
+      truckType,
+      hullNumber,
+      equipmentId,
+      ownerName,
+      notes,
+    } = req.body;
+
+    const truck = await prisma.truck.findUnique({
+      where: { code: req.params.id },
+    });
+
+    if (!truck) {
+      return res.status(404).json({
+        success: false,
+        message: 'Truck tidak ditemukan',
+      });
+    }
+
+    const updatedTruck = await prisma.truck.update({
+      where: { code: req.params.id },
+      data: {
+        truckNumber: truckNumber ? truckNumber.toUpperCase() : truck.truckNumber,
+        truckType: truckType || truck.truckType,
+        truckTypeLabel: truckType
+          ? (truckType === 'dyna' ? 'Dyna' : truckType === 'fuso' ? 'Fuso' : truckType)
+          : truck.truckTypeLabel,
+        hullNumber: hullNumber !== undefined ? (hullNumber ? String(hullNumber).trim() : null) : truck.hullNumber,
+        equipmentId: equipmentId !== undefined ? (equipmentId ? String(equipmentId).trim() : null) : truck.equipmentId,
+        ownerName: ownerName !== undefined ? (ownerName ? String(ownerName).trim() : null) : truck.ownerName,
+        notes: notes !== undefined ? (notes ? String(notes).trim() : null) : truck.notes,
+        lastUpdatedAt: new Date(),
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Data truck berhasil diperbarui',
+      data: serializeTruck(updatedTruck),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const truck = await prisma.truck.findUnique({
+      where: { code: req.params.id },
+    });
+
+    if (!truck) {
+      return res.status(404).json({
+        success: false,
+        message: 'Truck tidak ditemukan',
+      });
+    }
+
+    // Check if truck has any checkouts
+    const checkoutCount = await prisma.checkout.count({
+      where: { truckId: truck.id },
+    });
+
+    if (checkoutCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Truck ini memiliki ${checkoutCount} data retase dan tidak bisa dihapus`,
+      });
+    }
+
+    await prisma.truck.delete({
+      where: { code: req.params.id },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Truck berhasil dihapus',
     });
   } catch (error) {
     return next(error);

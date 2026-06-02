@@ -2,7 +2,15 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const { getNextCode } = require('../utils/id-generator');
 const { serializeCheckout } = require('../utils/serializers');
-const { getRetaseRates } = require('../utils/settings');
+const { 
+  getRetaseRates, 
+  getAllRetaseRates,
+  addPitLocationOption,
+  MATERIAL_SETTING_KEY,
+  HEAVY_EQUIPMENT_SETTING_KEY,
+  CONTRACTOR_SETTING_KEY,
+  addDynamicOption,
+} = require('../utils/settings');
 const {
   DEFAULT_REKAP_EXPORT_TIMEZONE,
   generateDailyNota,
@@ -199,7 +207,11 @@ router.get('/', async (req, res, next) => {
     const where = {};
 
     if (status) {
-      where.status = status;
+      if (status === 'ready_for_exit') {
+        where.status = { in: ['ready_for_exit', 'postponed'] };
+      } else {
+        where.status = status;
+      }
     }
 
     if (truckId) {
@@ -262,7 +274,7 @@ router.get('/rekap', async (req, res, next) => {
       where,
       orderBy: { createdAt: 'asc' },
     });
-    const rates = await getRetaseRates(prisma);
+    const { rates, ratesLahan, ratesPt } = await getAllRetaseRates(prisma);
 
     const groupedRows = new Map();
 
@@ -311,12 +323,23 @@ router.get('/rekap', async (req, res, next) => {
     });
 
     let cumulativePrice = 0;
+    let cumulativePriceLahan = 0;
+    let cumulativePricePt = 0;
     const rows = Array.from(groupedRows.values()).map((row) => {
       const fusoPrice = row.fusoCount * rates.fuso;
       const dynaPrice = row.dynaCount * rates.dyna;
       const totalPrice = fusoPrice + dynaPrice;
-
       cumulativePrice += totalPrice;
+
+      const fusoPriceLahan = row.fusoCount * ratesLahan.fuso;
+      const dynaPriceLahan = row.dynaCount * ratesLahan.dyna;
+      const totalPriceLahan = fusoPriceLahan + dynaPriceLahan;
+      cumulativePriceLahan += totalPriceLahan;
+
+      const fusoPricePt = row.fusoCount * ratesPt.fuso;
+      const dynaPricePt = row.dynaCount * ratesPt.dyna;
+      const totalPricePt = fusoPricePt + dynaPricePt;
+      cumulativePricePt += totalPricePt;
 
       return {
         period: row.period,
@@ -335,6 +358,14 @@ router.get('/rekap', async (req, res, next) => {
         dynaPrice,
         totalPrice,
         cumulativePrice,
+        fusoPriceLahan,
+        dynaPriceLahan,
+        totalPriceLahan,
+        cumulativePriceLahan,
+        fusoPricePt,
+        dynaPricePt,
+        totalPricePt,
+        cumulativePricePt,
       };
     });
 
@@ -351,6 +382,8 @@ router.get('/rekap', async (req, res, next) => {
           endDate: endDate || null,
           rateLocked: true,
           rates,
+          ratesLahan,
+          ratesPt,
         },
       },
     });
@@ -535,6 +568,14 @@ router.post('/', async (req, res, next) => {
       return checkout;
     });
 
+    // Save dynamic options for future dropdowns
+    Promise.allSettled([
+      addPitLocationOption(prisma, resolvedLocationOwner),
+      addDynamicOption(prisma, MATERIAL_SETTING_KEY, resolvedMaterialType),
+      addDynamicOption(prisma, HEAVY_EQUIPMENT_SETTING_KEY, resolvedHeavyEquipment),
+      resolvedContractor ? addDynamicOption(prisma, CONTRACTOR_SETTING_KEY, resolvedContractor) : Promise.resolve(),
+    ]).catch(err => console.error('Failed to save dynamic options', err));
+
     return res.status(201).json({
       success: true,
       message: 'Data retase berhasil disimpan dan menunggu verifikasi gate',
@@ -547,7 +588,7 @@ router.post('/', async (req, res, next) => {
 
 router.patch('/:id/verify', async (req, res, next) => {
   try {
-    const { verifiedBy, approved } = req.body;
+    const { verifiedBy, approved, action } = req.body;
 
     const checkout = await prisma.checkout.findUnique({
       where: { code: req.params.id },
@@ -562,6 +603,22 @@ router.patch('/:id/verify', async (req, res, next) => {
 
     const verifiedAt = new Date();
     const verifierName = normalizeText(verifiedBy) || 'Unknown';
+
+    // Handle postpone action
+    if (action === 'postpone') {
+      const updatedCheckout = await prisma.checkout.update({
+        where: { code: req.params.id },
+        data: {
+          status: 'postponed',
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Data retase ditunda dan akan muncul kembali di antrean.',
+        data: serializeCheckout(updatedCheckout),
+      });
+    }
 
     const updatedCheckout = await prisma.$transaction(async (transaction) => {
       const nextStatus = approved ? 'verified' : 'rejected';

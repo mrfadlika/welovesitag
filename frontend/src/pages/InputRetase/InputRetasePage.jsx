@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Camera,
@@ -9,6 +9,7 @@ import {
   Loader2,
   MapPin,
   Pickaxe,
+  Shovel,
   Truck,
   Upload,
   User as UserIcon,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
-import { checkoutAPI } from '../../services/api';
+import { checkoutAPI, truckAPI, settingsAPI } from '../../services/api';
 import {
   CONTRACTOR_OPTIONS,
   HEAVY_EQUIPMENT_OPTIONS,
@@ -41,6 +42,7 @@ const EMPTY_FORM = {
   contractorCustom: '',
   truckNumber: '',
   checkerPit: '',
+  hullNumber: '',
 };
 
 function FieldError({ message }) {
@@ -52,11 +54,11 @@ function FieldError({ message }) {
   );
 }
 
-function InputGroup({ id, label, icon, error, ...props }) {
+function InputGroup({ id, label, icon, error, required = true, ...props }) {
   return (
     <div className={`field-group ${error ? 'error' : ''}`}>
       <label htmlFor={id}>
-        {label} <span className="required">*</span>
+        {label} {required && <span className="required">*</span>}
       </label>
       <div className="field-input-wrap">
         {icon}
@@ -67,11 +69,11 @@ function InputGroup({ id, label, icon, error, ...props }) {
   );
 }
 
-function SelectGroup({ id, label, icon, options, error, ...props }) {
+function SelectGroup({ id, label, icon, options, error, required = true, ...props }) {
   return (
     <div className={`field-group ${error ? 'error' : ''}`}>
       <label htmlFor={id}>
-        {label} <span className="required">*</span>
+        {label} {required && <span className="required">*</span>}
       </label>
       <div className="field-input-wrap">
         {icon}
@@ -100,6 +102,7 @@ function resolveValue(selectedValue, customValue) {
 export default function InputRetasePage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isChecker = user?.role === 'checker';
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const draftStorageKey = useMemo(() => {
@@ -126,6 +129,76 @@ export default function InputRetasePage() {
   const [submitResult, setSubmitResult] = useState(null);
   const [errors, setErrors] = useState({});
 
+  const [materialOptions, setMaterialOptions] = useState(MATERIAL_OPTIONS);
+  const [locationOptions, setLocationOptions] = useState(LOCATION_OPTIONS);
+  const [equipmentOptions, setEquipmentOptions] = useState(HEAVY_EQUIPMENT_OPTIONS);
+  const [contractorOptions, setContractorOptions] = useState(CONTRACTOR_OPTIONS);
+
+  const fetchDynamicOptions = async () => {
+    try {
+      const result = await settingsAPI.getDynamicOptions();
+      if (result.success && result.data) {
+        const { materials, equipments, contractors, locations } = result.data;
+        
+        const mergeOptions = (staticOpts, dynamicOpts) => {
+          if (!dynamicOpts || dynamicOpts.length === 0) return staticOpts;
+          const staticVals = new Set(staticOpts.map(o => o.value.toLowerCase()));
+          const customOpt = staticOpts.find(o => isCustomOption(o.value));
+          const baseOpts = staticOpts.filter(o => !isCustomOption(o.value));
+          
+          const newOpts = dynamicOpts.filter(o => !staticVals.has(o.value.toLowerCase()));
+          
+          return [...baseOpts, ...newOpts, customOpt].filter(Boolean);
+        };
+
+        setMaterialOptions(mergeOptions(MATERIAL_OPTIONS, materials));
+        setEquipmentOptions(mergeOptions(HEAVY_EQUIPMENT_OPTIONS, equipments));
+        setContractorOptions(mergeOptions(CONTRACTOR_OPTIONS, contractors));
+        setLocationOptions(mergeOptions(LOCATION_OPTIONS, locations));
+      }
+    } catch {
+      // silently fail, fallback to default
+    }
+  };
+
+  useEffect(() => {
+    fetchDynamicOptions();
+  }, []);
+
+  // Truck data for checker role (hull number sync)
+  const [registeredTrucks, setRegisteredTrucks] = useState([]);
+  const [isTrucksLoading, setIsTrucksLoading] = useState(false);
+
+  // Fetch registered trucks (now for both admin and checker)
+  useEffect(() => {
+    const fetchTrucks = async () => {
+      setIsTrucksLoading(true);
+      try {
+        const result = await truckAPI.getAll();
+        if (result.success) {
+          setRegisteredTrucks(result.data || []);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setIsTrucksLoading(false);
+      }
+    };
+
+    fetchTrucks();
+  }, []);
+
+  // Hull number options for checker
+  const hullNumberOptions = useMemo(() => {
+    return registeredTrucks
+      .filter((t) => t.hullNumber)
+      .map((t) => ({
+        value: t.hullNumber,
+        label: `${t.hullNumber} — ${t.truckNumber} (${t.truckTypeLabel || t.truckType})`,
+        truck: t,
+      }));
+  }, [registeredTrucks]);
+
   const resolvedSubmission = useMemo(
     () => ({
       materialType: resolveValue(formData.materialType, formData.materialCustom),
@@ -147,6 +220,20 @@ export default function InputRetasePage() {
   const setField = (field, value) => {
     setFormData((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: '' }));
+  };
+
+  const handleHullNumberChange = (hullNumber) => {
+    setField('hullNumber', hullNumber);
+    const matchedTruck = registeredTrucks.find((t) => t.hullNumber === hullNumber);
+    if (matchedTruck) {
+      setFormData((prev) => ({
+        ...prev,
+        hullNumber,
+        truckNumber: matchedTruck.truckNumber || '',
+        truckType: matchedTruck.truckType || '',
+        truckTypeCustom: '',
+      }));
+    }
   };
 
   const handlePhotoUpload = (event) => {
@@ -175,19 +262,13 @@ export default function InputRetasePage() {
 
   const validate = () => {
     const nextErrors = {};
-    const requiredFields = [
-      ['materialType', !formData.materialType, 'Pilih jenis material'],
-      ['locationOwner', !formData.locationOwner, 'Pilih lokasi'],
-      ['heavyEquipment', !formData.heavyEquipment, 'Pilih alat berat'],
-      ['truckType', !formData.truckType, 'Pilih jenis truk'],
-      ['contractor', !formData.contractor, 'Pilih kontraktor'],
-      ['truckNumber', !formData.truckNumber.trim(), 'No. polisi wajib diisi'],
-      ['checkerPit', !resolvedSubmission.checkerPit, 'Checker pit wajib diisi'],
-    ];
 
-    requiredFields.forEach(([field, invalid, message]) => {
-      if (invalid) nextErrors[field] = message;
-    });
+    if (!formData.materialType) nextErrors.materialType = 'Pilih jenis material';
+    if (!formData.locationOwner) nextErrors.locationOwner = 'Pilih lokasi';
+    if (!formData.heavyEquipment) nextErrors.heavyEquipment = 'Pilih alat gali';
+    if (!formData.contractor) nextErrors.contractor = 'Pilih kontraktor';
+    if (!formData.hullNumber) nextErrors.hullNumber = 'Pilih nomor lambung';
+    if (!resolvedSubmission.checkerPit) nextErrors.checkerPit = 'Checker pit wajib diisi';
 
     if (isCustomOption(formData.materialType) && !formData.materialCustom.trim()) {
       nextErrors.materialCustom = 'Isi jenis material lainnya';
@@ -196,10 +277,7 @@ export default function InputRetasePage() {
       nextErrors.locationCustom = 'Isi lokasi lainnya';
     }
     if (isCustomOption(formData.heavyEquipment) && !formData.heavyEquipmentCustom.trim()) {
-      nextErrors.heavyEquipmentCustom = 'Isi alat berat lainnya';
-    }
-    if (isCustomOption(formData.truckType) && !formData.truckTypeCustom.trim()) {
-      nextErrors.truckTypeCustom = 'Isi jenis truk lainnya';
+      nextErrors.heavyEquipmentCustom = 'Isi alat gali lainnya';
     }
     if (isCustomOption(formData.contractor) && !formData.contractorCustom.trim()) {
       nextErrors.contractorCustom = 'Isi kontraktor lainnya';
@@ -243,6 +321,14 @@ export default function InputRetasePage() {
       setPhotoFile(null);
       setPhotoPreview(null);
       setErrors({});
+      setFormData(prev => ({
+        ...prev,
+        hullNumber: '',
+        truckNumber: '',
+        locationOwner: '',
+        locationCustom: '',
+      }));
+      fetchDynamicOptions();
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
     } catch (error) {
@@ -255,47 +341,55 @@ export default function InputRetasePage() {
     }
   };
 
-  const summaryItems = [
-    {
-      label: 'Jenis Material',
-      value:
-        resolvedSubmission.materialType ||
-        getOptionLabel(MATERIAL_OPTIONS, formData.materialType),
-    },
-    {
-      label: 'Lokasi',
-      value:
-        resolvedSubmission.locationOwner ||
-        getOptionLabel(LOCATION_OPTIONS, formData.locationOwner),
-    },
-    {
-      label: 'Alat Berat',
-      value:
-        resolvedSubmission.heavyEquipment ||
-        getOptionLabel(HEAVY_EQUIPMENT_OPTIONS, formData.heavyEquipment),
-    },
-    {
-      label: 'Jenis Truk',
-      value:
-        resolvedSubmission.truckTypeLabel ||
-        getOptionLabel(TRUCK_TYPE_OPTIONS, formData.truckType),
-    },
-    { label: 'No Polisi', value: formData.truckNumber || '-' },
-    {
-      label: 'Kontraktor',
-      value:
-        resolvedSubmission.contractor ||
-        getOptionLabel(CONTRACTOR_OPTIONS, formData.contractor),
-    },
-    { label: 'Checker Pit', value: resolvedSubmission.checkerPit || '-' },
-    { label: 'Checker Gate', value: 'Otomatis saat verifikasi' },
-  ];
+  // Build summary items based on role
+  const summaryItems = useMemo(() => {
+    const items = [
+        {
+          label: 'Jenis Material',
+          value:
+            resolvedSubmission.materialType ||
+            getOptionLabel(materialOptions, formData.materialType),
+        },
+        {
+          label: 'Lokasi',
+          value:
+            resolvedSubmission.locationOwner ||
+            getOptionLabel(locationOptions, formData.locationOwner),
+        },
+        {
+          label: 'Alat Gali',
+          value:
+            resolvedSubmission.heavyEquipment ||
+            getOptionLabel(equipmentOptions, formData.heavyEquipment),
+        },
+    ];
+
+    items.push({
+      label: 'No. Lambung',
+      value: formData.hullNumber || '-',
+    });
+
+    if (formData.contractor) {
+      items.push({
+        label: 'Kontraktor',
+        value:
+          resolvedSubmission.contractor ||
+          getOptionLabel(contractorOptions, formData.contractor),
+      });
+    }
+    items.push({ label: 'Checker Pit', value: resolvedSubmission.checkerPit || '-' });
+    items.push({ label: 'Checker Gate', value: 'Otomatis saat verifikasi' });
+
+    return items;
+  }, [formData, resolvedSubmission, materialOptions, locationOptions, equipmentOptions, contractorOptions]);
 
   const completionPercent = Math.round(
     (summaryItems.filter((item) => item.value && item.value !== '-').length / summaryItems.length) * 100
   );
 
   const now = new Date();
+
+  const equipmentLabel = 'Alat Gali';
 
   return (
     <div className="input-retase-page" id="input-retase-page">
@@ -314,7 +408,9 @@ export default function InputRetasePage() {
         <div className="input-header-info">
           <span className="section-kicker">Workbook Sync</span>
           <h2>Form Input Data Retase</h2>
-          <p>Field sekarang disusun mengikuti sheet Excel: material, lokasi, alat berat, jenis truk, no polisi, kontraktor, checker pit, dan checker gate.</p>
+          <p>
+            Pilih nomor lambung untuk sinkron data dari registrasi mobil. Isi material, lokasi, alat gali, dan kontraktor.
+          </p>
           <span className="draft-state recovered">
             Draft input tersimpan otomatis selama sesi browser. Foto perlu dipilih ulang.
           </span>
@@ -352,17 +448,34 @@ export default function InputRetasePage() {
               </div>
             </div>
             <div className="form-grid">
-              <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={MATERIAL_OPTIONS} error={errors.materialType} />
-              <SelectGroup id="locationOwner" label="Lokasi" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={LOCATION_OPTIONS} error={errors.locationOwner} />
+              {/* --- Nomor Lambung (synced with registration) --- */}
+              <SelectGroup
+                id="hullNumber"
+                label="Nomor Lambung"
+                icon={<Hash size={18} className="field-icon" />}
+                value={formData.hullNumber}
+                onChange={(event) => handleHullNumberChange(event.target.value)}
+                options={hullNumberOptions}
+                error={errors.hullNumber}
+              />
+
+              <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={materialOptions} error={errors.materialType} />
+              <SelectGroup id="locationOwner" label="Lokasi" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={locationOptions} error={errors.locationOwner} />
               {isCustomOption(formData.materialType) && <InputGroup id="materialCustom" label="Jenis Material Lainnya" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialCustom} onChange={(event) => setField('materialCustom', event.target.value)} placeholder="Tulis material lain" error={errors.materialCustom} />}
               {isCustomOption(formData.locationOwner) && <InputGroup id="locationCustom" label="Lokasi Lainnya" icon={<MapPin size={18} className="field-icon" />} value={formData.locationCustom} onChange={(event) => setField('locationCustom', event.target.value)} placeholder="Tulis lokasi lain" error={errors.locationCustom} />}
-              <SelectGroup id="heavyEquipment" label="Alat Berat" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipment} onChange={(event) => setField('heavyEquipment', event.target.value)} options={HEAVY_EQUIPMENT_OPTIONS} error={errors.heavyEquipment} />
-              <SelectGroup id="contractor" label="Kontraktor" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractor} onChange={(event) => setField('contractor', event.target.value)} options={CONTRACTOR_OPTIONS} error={errors.contractor} />
-              {isCustomOption(formData.heavyEquipment) && <InputGroup id="heavyEquipmentCustom" label="Alat Berat Lainnya" icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipmentCustom} onChange={(event) => setField('heavyEquipmentCustom', event.target.value)} placeholder="Tulis alat berat lain" error={errors.heavyEquipmentCustom} />}
+              <SelectGroup id="heavyEquipment" label={equipmentLabel} icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipment} onChange={(event) => setField('heavyEquipment', event.target.value)} options={equipmentOptions} error={errors.heavyEquipment} />
+              <SelectGroup id="contractor" label="Kontraktor" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractor} onChange={(event) => setField('contractor', event.target.value)} options={contractorOptions} error={errors.contractor} />
+              {isCustomOption(formData.heavyEquipment) && <InputGroup id="heavyEquipmentCustom" label={`${equipmentLabel} Lainnya`} icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipmentCustom} onChange={(event) => setField('heavyEquipmentCustom', event.target.value)} placeholder={`Tulis ${equipmentLabel.toLowerCase()} lain`} error={errors.heavyEquipmentCustom} />}
               {isCustomOption(formData.contractor) && <InputGroup id="contractorCustom" label="Kontraktor Lainnya" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractorCustom} onChange={(event) => setField('contractorCustom', event.target.value)} placeholder="Tulis kontraktor lain" error={errors.contractorCustom} />}
-              <SelectGroup id="truckType" label="Jenis Truk" icon={<Truck size={18} className="field-icon" />} value={formData.truckType} onChange={(event) => setField('truckType', event.target.value)} options={TRUCK_TYPE_OPTIONS} error={errors.truckType} />
-              <InputGroup id="truckNumber" label="No Polisi" icon={<Hash size={18} className="field-icon" />} value={formData.truckNumber} onChange={(event) => setField('truckNumber', event.target.value.toUpperCase())} placeholder="Contoh: DD 1234 AB" error={errors.truckNumber} />
-              {isCustomOption(formData.truckType) && <InputGroup id="truckTypeCustom" label="Jenis Truk Lainnya" icon={<Truck size={18} className="field-icon" />} value={formData.truckTypeCustom} onChange={(event) => setField('truckTypeCustom', event.target.value)} placeholder="Tulis jenis truk lain" error={errors.truckTypeCustom} />}
+
+              {/* --- Show synced values --- */}
+              {formData.hullNumber && (
+                <div className="readonly-strip" style={{ gridColumn: '1 / -1' }}>
+                  <div className="readonly-tile"><span className="readonly-label">No Polisi</span><strong>{formData.truckNumber || '-'}</strong></div>
+                  <div className="readonly-tile"><span className="readonly-label">Tipe Truk</span><strong>{formData.truckType === 'dyna' ? 'Dyna' : formData.truckType === 'fuso' ? 'Fuso' : formData.truckType || '-'}</strong></div>
+                </div>
+              )}
+
               <div className={`field-group full-width ${errors.checkerPit ? 'error' : ''}`}>
                 <label htmlFor="checkerPit">Checker Pit <span className="required">*</span></label>
                 <div className="field-input-wrap">

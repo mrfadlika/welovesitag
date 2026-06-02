@@ -4,10 +4,10 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  PauseCircle,
   Search,
   ShieldCheck,
   X,
-  XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
@@ -88,15 +88,26 @@ export default function ExitVerificationPage() {
     ];
   }, [filteredData]);
 
-  const updateRecordStatus = (recordId) => {
-    setRecords((previous) => previous.filter((item) => item.id !== recordId));
+  const updateRecordStatus = (recordId, newStatus) => {
+    if (newStatus === 'postponed') {
+      setRecords((previous) =>
+        previous.map((item) => (item.id === recordId ? { ...item, status: 'postponed' } : item))
+      );
+    } else {
+      setRecords((previous) => previous.filter((item) => item.id !== recordId));
+    }
   };
 
-  const handleVerification = async (recordId, approved) => {
+  const handleVerification = async (recordId, action) => {
     setVerifyingId(recordId);
 
     try {
-      const result = await checkoutAPI.verify(recordId, user?.name || user?.username, approved);
+      let result;
+      if (action === 'postpone') {
+        result = await checkoutAPI.verify(recordId, user?.name || user?.username, false, 'postpone');
+      } else {
+        result = await checkoutAPI.verify(recordId, user?.name || user?.username, true);
+      }
 
       if (!result.success) {
         setVerifyResult({
@@ -107,12 +118,12 @@ export default function ExitVerificationPage() {
       }
 
       setVerifyResult({
-        tone: approved ? 'success' : 'warning',
-        message: approved
-          ? 'Data retase berhasil diverifikasi gate.'
-          : 'Data retase ditolak dan dikeluarkan dari antrean.',
+        tone: action === 'postpone' ? 'warning' : 'success',
+        message: action === 'postpone'
+          ? 'Data retase ditunda dan tetap berada di antrean.'
+          : 'Data retase berhasil diverifikasi gate.',
       });
-      updateRecordStatus(recordId);
+      updateRecordStatus(recordId, action === 'postpone' ? 'postponed' : 'approved');
     } catch (verifyError) {
       setVerifyResult({
         tone: 'error',
@@ -163,7 +174,7 @@ export default function ExitVerificationPage() {
 
       <div className="verify-note surface-card">
         <strong>Urutan aman verifikasi gate:</strong>
-        <span>Pilih baris tabel, cocokkan material dan lokasi, periksa alat berat serta kontraktor, lalu setujui atau tolak.</span>
+        <span>Pilih baris tabel, cocokkan material dan lokasi, periksa alat gali serta kontraktor, lalu setuju/terima atau tunda.</span>
       </div>
 
       <div className="verify-toolbar">
@@ -254,11 +265,23 @@ export default function ExitVerificationPage() {
                       </td>
                       <td data-label="Status" className="verify-cell verify-cell--status table-cell-center">
                         <div className="table-stack verify-cell-stack verify-status-stack">
-                          <span className="truck-badge verify-status-badge">
-                            <ShieldCheck size={14} />
-                            <span>Menunggu Gate</span>
-                          </span>
-                          <span className="table-muted verify-status-note">Siap diverifikasi gate</span>
+                          {record.status === 'postponed' ? (
+                            <>
+                              <span className="truck-badge verify-status-badge" style={{ background: 'var(--color-accent-warning-soft)', color: 'var(--color-accent-warning)', borderColor: 'var(--color-accent-warning-border)' }}>
+                                <PauseCircle size={14} />
+                                <span>Tertunda</span>
+                              </span>
+                              <span className="table-muted verify-status-note">Menunggu tindakan lanjutan</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="truck-badge verify-status-badge">
+                                <ShieldCheck size={14} />
+                                <span>Menunggu Persetujuan</span>
+                              </span>
+                              <span className="table-muted verify-status-note">Belum ada tindakan</span>
+                            </>
+                          )}
                         </div>
                       </td>
                       <td data-label="Aksi" className="verify-cell verify-cell--action table-cell-center">
@@ -268,7 +291,7 @@ export default function ExitVerificationPage() {
                             className="btn-approve"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleVerification(record.id, true);
+                              handleVerification(record.id, 'approve');
                             }}
                             disabled={verifyingId === record.id}
                           >
@@ -278,16 +301,16 @@ export default function ExitVerificationPage() {
                               </>
                             ) : (
                               <>
-                                <CheckCircle2 size={18} /> Setujui
+                                <CheckCircle2 size={18} /> Setuju/Terima
                               </>
                             )}
                           </button>
                           <button
                             type="button"
-                            className="btn-reject"
+                            className="btn-postpone"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleVerification(record.id, false);
+                              handleVerification(record.id, 'postpone');
                             }}
                             disabled={verifyingId === record.id}
                           >
@@ -297,7 +320,7 @@ export default function ExitVerificationPage() {
                               </>
                             ) : (
                               <>
-                                <XCircle size={18} /> Tolak
+                                <PauseCircle size={18} /> Tunda
                               </>
                             )}
                           </button>

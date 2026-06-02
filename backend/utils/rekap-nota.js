@@ -309,9 +309,11 @@ function buildNotaPdfBuffer({
         });
     };
 
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#6b7280')
+      .text('PT. GEOSTONE', formX, formTop);
     doc.font('Helvetica-Bold').fontSize(14).fillColor('#111827')
-      .text((locationOwner || 'ANUGRAH').toUpperCase(), formX, formTop);
-    doc.text((row.day || '').toUpperCase(), formX + formWidth - 130, formTop, {
+      .text((locationOwner || 'ANUGRAH').toUpperCase(), formX, formTop + 14);
+    doc.text((row.day || '').toUpperCase(), formX + formWidth - 130, formTop + 14, {
       width: 130,
       align: 'right',
     });

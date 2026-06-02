@@ -133,6 +133,28 @@
   color: var(--color-text-primary);
 }
 
+.sidebar-collapsed .sidebar-header {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+.sidebar-collapsed .sidebar-brand-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.sidebar-collapsed .sidebar-collapse-btn {
+  width: 2rem;
+  height: 2rem;
+}
+
+.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding-inline: 0;
+}
+
 /* ========== NAVIGATION ========== */
 .sidebar-nav {
   flex: 1;
@@ -243,6 +265,30 @@
 
 .nav-item.active .nav-hint {
   color: rgba(251, 179, 36, 0.7);
+}
+
+/* ========== NAV BADGE (Notification) ========== */
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 2px 16px rgba(239, 68, 68, 0.7); }
 }
 
 /* ========== SIDEBAR FOOTER ========== */

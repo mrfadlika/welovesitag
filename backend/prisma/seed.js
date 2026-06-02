@@ -262,7 +262,8 @@ async function seedTrucksAndCheckouts() {
 
 async function main() {
   await seedUsers();
-  await seedTrucksAndCheckouts();
+  // Dummy data has been disabled for production/testing
+  // await seedTrucksAndCheckouts();
 }
 
 main()

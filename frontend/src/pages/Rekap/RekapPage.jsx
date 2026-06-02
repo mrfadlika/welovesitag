@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
-import { checkoutAPI } from '../../services/api';
+import { checkoutAPI, settingsAPI } from '../../services/api';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { CONTRACTOR_OPTIONS, LOCATION_OPTIONS } from '../../data/retaseOptions';
 import { formatCurrency } from '../../utils/retase';
 import './RekapPage.css';
@@ -143,6 +145,51 @@ export default function RekapPage() {
   const [error, setError] = useState(null);
   const [refreshSeed, setRefreshSeed] = useState(0);
 
+  // States for Rates Editing
+  const [isEditingRates, setIsEditingRates] = useState(false);
+  const [isSavingRates, setIsSavingRates] = useState(false);
+  const [editRatesData, setEditRatesData] = useState({
+    lahanFuso: 0,
+    lahanDyna: 0,
+    ptFuso: 0,
+    ptDyna: 0,
+  });
+
+  const handleEditRatesToggle = () => {
+    if (!isEditingRates) {
+      setEditRatesData({
+        lahanFuso: meta?.ratesLahan?.fuso || 0,
+        lahanDyna: meta?.ratesLahan?.dyna || 0,
+        ptFuso: meta?.ratesPt?.fuso || 0,
+        ptDyna: meta?.ratesPt?.dyna || 0,
+      });
+    }
+    setIsEditingRates(!isEditingRates);
+  };
+
+  const handleSaveRates = async () => {
+    setIsSavingRates(true);
+    try {
+      const payload = {
+        createdByRole: 'Admin',
+        ratesLahan: { fuso: editRatesData.lahanFuso, dyna: editRatesData.lahanDyna },
+        ratesPt: { fuso: editRatesData.ptFuso, dyna: editRatesData.ptDyna },
+      };
+      const res = await settingsAPI.updateRates(payload);
+      if (res.success) {
+        setIsEditingRates(false);
+        setRefreshSeed((s) => s + 1);
+        alert('Harga berhasil disimpan!');
+      } else {
+        alert(res.message || 'Gagal menyimpan harga');
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setIsSavingRates(false);
+    }
+  };
+
   useEffect(() => {
     const fetchRekap = async () => {
       setIsLoading(true);
@@ -207,9 +254,8 @@ export default function RekapPage() {
     () => ({
       fusoCount: rows.reduce((sum, row) => sum + row.fusoCount, 0),
       dynaCount: rows.reduce((sum, row) => sum + row.dynaCount, 0),
-      fusoPrice: rows.reduce((sum, row) => sum + row.fusoPrice, 0),
-      dynaPrice: rows.reduce((sum, row) => sum + row.dynaPrice, 0),
-      totalPrice: rows.reduce((sum, row) => sum + row.totalPrice, 0),
+      totalLahan: rows.reduce((sum, row) => sum + row.totalPriceLahan, 0),
+      totalPt: rows.reduce((sum, row) => sum + row.totalPricePt, 0),
     }),
     [rows]
   );
@@ -253,6 +299,7 @@ export default function RekapPage() {
       `- Periode: ${dateRangeLabel}\n` +
       `- Lokasi: ${selectedLocation}\n` +
       `- Kontraktor: ${selectedContractor}\n\n` +
+      'Export akan menghasilkan 2 sheet: Pemilik Lahan dan Pemilik PT.\n\n' +
       'Lanjutkan export?';
 
     if (!window.confirm(exportConfirmationMessage)) {
@@ -261,100 +308,190 @@ export default function RekapPage() {
 
     const currentFusoRate = Number(meta?.rates?.fuso || 0);
     const currentDynaRate = Number(meta?.rates?.dyna || 0);
+    const lahanFusoRate = Number(meta?.ratesLahan?.fuso || 0);
+    const lahanDynaRate = Number(meta?.ratesLahan?.dyna || 0);
+    const ptFusoRate = Number(meta?.ratesPt?.fuso || 0);
+    const ptDynaRate = Number(meta?.ratesPt?.dyna || 0);
 
-    const exportRows = rows.map((row) => {
-      const fusoCumulativePrice = row.fusoCount * currentFusoRate;
-      const dynaCumulativePrice = row.dynaCount * currentDynaRate;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SITAG System';
+    wb.created = new Date();
 
-      return {
-        ...row,
-        fusoCumulativePrice,
-        dynaCumulativePrice,
-        cumulativePrice: fusoCumulativePrice + dynaCumulativePrice,
-      };
-    });
+    const buildStyledSheet = (sheetName, title, data) => {
+      const ws = wb.addWorksheet(sheetName);
 
-    const header = [
-      periodColumnLabel,
-      dateColumnLabel,
-      'Checker Pit',
-      'Checker Gate',
-      'Retase Fuso',
-      'Retase Dyna',
-      'Kumulatif Fuso',
-      'Kumulatif Dyna',
-      'Kumulatif Harga',
-    ];
+      // Add Title
+      ws.addRow([title]);
+      ws.mergeCells('A1:I1');
+      const titleCell = ws.getCell('A1');
+      titleCell.font = { name: 'Calibri', size: 16, bold: true };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-    const exportTotals = {
-      fusoCount: exportRows.reduce((sum, r) => sum + r.fusoCount, 0),
-      dynaCount: exportRows.reduce((sum, r) => sum + r.dynaCount, 0),
-      fusoPrice: exportRows.reduce((sum, r) => sum + r.fusoCumulativePrice, 0),
-      dynaPrice: exportRows.reduce((sum, r) => sum + r.dynaCumulativePrice, 0),
-      totalPrice: exportRows.reduce((sum, r) => sum + r.cumulativePrice, 0),
+      // Add Meta Info
+      ws.addRow([`Periode: ${dateRangeLabel} | Filter: ${periodOption.label}`]);
+      ws.mergeCells('A2:I2');
+      ws.getCell('A2').alignment = { horizontal: 'center' };
+      ws.addRow([]); // Empty row
+
+      // Define columns
+      ws.columns = [
+        { key: 'period', width: 15 },
+        { key: 'date', width: 22 },
+        { key: 'checkerPit', width: 20 },
+        { key: 'checkerGate', width: 20 },
+        { key: 'fusoCount', width: 15 },
+        { key: 'dynaCount', width: 15 },
+        { key: 'fusoPrice', width: 20 },
+        { key: 'dynaPrice', width: 20 },
+        { key: 'totalPrice', width: 20 },
+      ];
+
+      // Add Header Row (Row 4) manually
+      const headerRow = ws.getRow(4);
+      headerRow.values = [
+        'Periode',
+        'Tanggal',
+        'Checker Pit',
+        'Checker Gate',
+        'Retase Fuso',
+        'Retase Dyna',
+        'Harga Fuso',
+        'Harga Dyna',
+        'Total Harga'
+      ];
+
+      // Style Header Row (Row 4)
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFBB324' }, // SITAG Accent Yellow
+        };
+        cell.font = { bold: true, color: { argb: 'FF000000' } };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+
+      // Add Data Rows
+      data.forEach((row, index) => {
+        const isTotalRow = index === data.length - 1;
+        const excelRow = ws.addRow(row);
+
+        excelRow.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+
+          // Currency formatting for price columns
+          if (colNumber >= 7 && colNumber <= 9) {
+            cell.numFmt = '"Rp"#,##0;[Red]\-"Rp"#,##0';
+          }
+
+          if (isTotalRow) {
+            cell.font = { bold: true };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF3F4F6' },
+            };
+          } else {
+            // Apply column-specific colors for normal rows
+            if (colNumber === 5 || colNumber === 7) {
+              // Fuso Columns: Light Blue
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE0F2FE' },
+              };
+            } else if (colNumber === 6 || colNumber === 8) {
+              // Dyna Columns: Light Orange/Red
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFEDD5' },
+              };
+            } else if (colNumber === 9) {
+              // Total Column: Light Green
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD1FAE5' },
+              };
+            }
+          }
+        });
+      });
     };
 
-    const tableHtml = `
-      <h2>Rekap Retase ${escapeHtml(periodOption.label)}</h2>
-      <p>
-        Mode: ${escapeHtml(periodOption.label)} |
-        Periode: ${escapeHtml(dateRangeLabel)} |
-        Lokasi: ${escapeHtml(selectedLocation)} |
-        Kontraktor: ${escapeHtml(selectedContractor)} |
-        Harga/Mobil Fuso: ${escapeHtml(formatCurrency(currentFusoRate))} |
-        Harga/Mobil Dyna: ${escapeHtml(formatCurrency(currentDynaRate))}
-      </p>
-      <table border="1">
-        <thead>
-          <tr style="background-color: #fbb324; color: #000; font-weight: bold;">
-            ${header.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${exportRows
-            .map(
-              (row) => `
-            <tr>
-              <td>${escapeHtml(row.day)}</td>
-              <td>${escapeHtml(getRowDateLabel(row, filters.period))}</td>
-              <td>${escapeHtml(row.checkerPit)}</td>
-              <td>${escapeHtml(row.checkerGate)}</td>
-              <td>${row.fusoCount}</td>
-              <td>${row.dynaCount}</td>
-              <td>${escapeHtml(formatCurrency(row.fusoCumulativePrice))}</td>
-              <td>${escapeHtml(formatCurrency(row.dynaCumulativePrice))}</td>
-              <td>${escapeHtml(formatCurrency(row.cumulativePrice))}</td>
-            </tr>
-          `
-            )
-            .join('')}
-          <tr style="background-color: #f3f4f6; font-weight: bold;">
-            <td colspan="4" style="text-align: right;">TOTAL:</td>
-            <td>${exportTotals.fusoCount}</td>
-            <td>${exportTotals.dynaCount}</td>
-            <td>${escapeHtml(formatCurrency(exportTotals.fusoPrice))}</td>
-            <td>${escapeHtml(formatCurrency(exportTotals.dynaPrice))}</td>
-            <td>${escapeHtml(formatCurrency(exportTotals.totalPrice))}</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
+    const buildSheetData = (fusoRate, dynaRate, fusoPKey, dynaPKey, totalPKey) => {
+      const sheetData = [];
+      let totalFusoCount = 0;
+      let totalDynaCount = 0;
+      let totalFusoPrice = 0;
+      let totalDynaPrice = 0;
+      let grandTotal = 0;
 
-    const template = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rekap Retase</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-        <body>${tableHtml}</body>
-      </html>
-    `;
+      rows.forEach((row) => {
+        const sheetFusoPrice = row[fusoPKey] ?? (row.fusoCount * fusoRate);
+        const sheetDynaPrice = row[dynaPKey] ?? (row.dynaCount * dynaRate);
+        const sheetTotalPrice = row[totalPKey] ?? ((row.fusoCount * fusoRate) + (row.dynaCount * dynaRate));
 
-    const blob = new Blob(['\ufeff', template], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.xls`;
-    link.click();
-    URL.revokeObjectURL(url);
+        totalFusoCount += row.fusoCount;
+        totalDynaCount += row.dynaCount;
+        totalFusoPrice += sheetFusoPrice;
+        totalDynaPrice += sheetDynaPrice;
+        grandTotal += sheetTotalPrice;
+
+        sheetData.push({
+          period: row.day,
+          date: getRowDateLabel(row, filters.period),
+          checkerPit: row.checkerPit,
+          checkerGate: row.checkerGate,
+          fusoCount: row.fusoCount,
+          dynaCount: row.dynaCount,
+          fusoPrice: sheetFusoPrice,
+          dynaPrice: sheetDynaPrice,
+          totalPrice: sheetTotalPrice,
+        });
+      });
+
+      sheetData.push({
+        period: 'TOTAL',
+        date: '',
+        checkerPit: '',
+        checkerGate: '',
+        fusoCount: totalFusoCount,
+        dynaCount: totalDynaCount,
+        fusoPrice: totalFusoPrice,
+        dynaPrice: totalDynaPrice,
+        totalPrice: grandTotal,
+      });
+
+      return sheetData;
+    };
+
+    const lahanData = buildSheetData(lahanFusoRate, lahanDynaRate, 'fusoPriceLahan', 'dynaPriceLahan', 'totalPriceLahan');
+    const ptData = buildSheetData(ptFusoRate, ptDynaRate, 'fusoPricePt', 'dynaPricePt', 'totalPricePt');
+
+    buildStyledSheet('Pemilik Lahan', 'Rekap Retase - Pemilik Lahan', lahanData);
+    buildStyledSheet('Pemilik PT', 'Rekap Retase - Pemilik PT', ptData);
+
+    wb.xlsx.writeBuffer().then((buffer) => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Rekap_Retase_${filters.period}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    });
   };
+
+
+
 
   const handleExportPDF = async () => {
     if (!canExportPdf || isExportingPdf) {
@@ -604,31 +741,89 @@ export default function RekapPage() {
 
         {isAdmin && (
           <section className="rekap-rates-panel surface-card">
-            <div className="rekap-filter-header">
-              <Wallet size={16} />
-              <strong>Parameter Harga</strong>
-              <span className="soft-badge">Terkunci</span>
+            <div className="rekap-filter-header" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Wallet size={16} />
+                <strong>Parameter Harga</strong>
+              </div>
+              <button 
+                type="button" 
+                className="rekap-secondary-btn" 
+                style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                onClick={handleEditRatesToggle}
+              >
+                {isEditingRates ? 'Batal' : 'Edit Lahan & PT'}
+              </button>
             </div>
 
-            <div className="rekap-rates-grid">
+            <div className="rekap-rates-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               <div className="rekap-rate-lock-card">
-                <span>Harga Fuso</span>
-                <strong>{formatCurrency(meta?.rates?.fuso)}</strong>
-                <small>Parameter tetap sistem</small>
+                <span>Fuso (Lahan)</span>
+                {isEditingRates ? (
+                  <input 
+                    type="number" 
+                    value={editRatesData.lahanFuso} 
+                    onChange={e => setEditRatesData({...editRatesData, lahanFuso: e.target.value})}
+                    style={{ background: '#333', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', width: '100px' }}
+                  />
+                ) : (
+                  <strong>{formatCurrency(meta?.ratesLahan?.fuso)}</strong>
+                )}
+              </div>
+              <div className="rekap-rate-lock-card">
+                <span>Dyna (Lahan)</span>
+                {isEditingRates ? (
+                  <input 
+                    type="number" 
+                    value={editRatesData.lahanDyna} 
+                    onChange={e => setEditRatesData({...editRatesData, lahanDyna: e.target.value})}
+                    style={{ background: '#333', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', width: '100px' }}
+                  />
+                ) : (
+                  <strong>{formatCurrency(meta?.ratesLahan?.dyna)}</strong>
+                )}
               </div>
 
               <div className="rekap-rate-lock-card">
-                <span>Harga Dyna</span>
-                <strong>{formatCurrency(meta?.rates?.dyna)}</strong>
-                <small>Parameter tetap sistem</small>
+                <span>Fuso (PT)</span>
+                {isEditingRates ? (
+                  <input 
+                    type="number" 
+                    value={editRatesData.ptFuso} 
+                    onChange={e => setEditRatesData({...editRatesData, ptFuso: e.target.value})}
+                    style={{ background: '#333', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', width: '100px' }}
+                  />
+                ) : (
+                  <strong>{formatCurrency(meta?.ratesPt?.fuso)}</strong>
+                )}
+              </div>
+              <div className="rekap-rate-lock-card">
+                <span>Dyna (PT)</span>
+                {isEditingRates ? (
+                  <input 
+                    type="number" 
+                    value={editRatesData.ptDyna} 
+                    onChange={e => setEditRatesData({...editRatesData, ptDyna: e.target.value})}
+                    style={{ background: '#333', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', width: '100px' }}
+                  />
+                ) : (
+                  <strong>{formatCurrency(meta?.ratesPt?.dyna)}</strong>
+                )}
               </div>
             </div>
 
-            <div className="rekap-rates-footer">
-              <span className="rekap-rates-note">
-                Harga retase dikunci dari aplikasi dan dipakai otomatis untuk dashboard, rekap, dan ekspor.
-              </span>
-            </div>
+            {isEditingRates && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  className="rekap-export-btn"
+                  onClick={handleSaveRates}
+                  disabled={isSavingRates}
+                >
+                  {isSavingRates ? 'Menyimpan...' : 'Simpan Harga Lahan & PT'}
+                </button>
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -675,12 +870,12 @@ export default function RekapPage() {
               <strong>{totals.dynaCount}</strong>
             </div>
             <div>
-              <span>Harga Fuso</span>
-              <strong>{formatCurrency(totals.fusoPrice)}</strong>
+              <span>Total Harga Lahan</span>
+              <strong>{formatCurrency(totals.totalLahan)}</strong>
             </div>
             <div>
-              <span>Harga Dyna</span>
-              <strong>{formatCurrency(totals.dynaPrice)}</strong>
+              <span>Total Harga PT</span>
+              <strong>{formatCurrency(totals.totalPt)}</strong>
             </div>
           </div>
         </article>
@@ -716,9 +911,8 @@ export default function RekapPage() {
                   <th className="rekap-head rekap-head--trip table-head-center">Retase</th>
                   {isAdmin && (
                     <>
-                      <th className="rekap-head rekap-head--rate table-head-right">Harga Satuan</th>
-                      <th className="rekap-head rekap-head--total table-head-right">Harga</th>
-                      <th className="rekap-head rekap-head--cumulative table-head-right">Cumulative Harga</th>
+                      <th className="rekap-head rekap-head--rate table-head-right">Total Lahan</th>
+                      <th className="rekap-head rekap-head--total table-head-right">Total PT</th>
                     </>
                   )}
                 </tr>
@@ -761,20 +955,12 @@ export default function RekapPage() {
                     </td>
                     {isAdmin && (
                       <>
-                        <td data-label="Harga Satuan" className="rekap-cell rekap-cell--rate">
-                          <div className="table-stack rekap-cell-stack">
-                            <span className="rekap-metric-line">
-                              <span className="rekap-metric-label">Fuso</span>
-                              <span className="rekap-metric-value">{formatCurrency(row.fusoPrice)}</span>
-                            </span>
-                            <span className="rekap-metric-line">
-                              <span className="rekap-metric-label">Dyna</span>
-                              <span className="rekap-metric-value">{formatCurrency(row.dynaPrice)}</span>
-                            </span>
-                          </div>
+                        <td data-label="Total Lahan" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">
+                          {formatCurrency(row.totalPriceLahan)}
                         </td>
-                        <td data-label="Harga" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">{formatCurrency(row.totalPrice)}</td>
-                        <td data-label="Cumulative Harga" className="rekap-cell rekap-cell--cumulative rekap-cumulative-price table-cell-right">{formatCurrency(row.cumulativePrice)}</td>
+                        <td data-label="Total PT" className="rekap-cell rekap-cell--total rekap-total-price table-cell-right">
+                          {formatCurrency(row.totalPricePt)}
+                        </td>
                       </>
                     )}
                   </tr>

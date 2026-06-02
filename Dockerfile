@@ -34,4 +34,4 @@ ENV DATABASE_URL="file:./data/dev.db"
 EXPOSE 3000
 
 # Script to run migrations and start
-CMD ["sh", "-c", "npx prisma migrate deploy && exec npm start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && exec npm start"]

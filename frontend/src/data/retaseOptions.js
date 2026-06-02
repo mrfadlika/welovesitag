@@ -20,6 +20,9 @@ export const HEAVY_EQUIPMENT_OPTIONS = [
   { value: '__custom__', label: 'Lainnya' },
 ];
 
+// Alias: label changed from "Alat Berat" to "Alat Gali" for checker role
+export const DIGGING_EQUIPMENT_OPTIONS = HEAVY_EQUIPMENT_OPTIONS;
+
 export const TRUCK_TYPE_OPTIONS = [
   { value: 'dyna', label: 'Dyna' },
   { value: 'fuso', label: 'Fuso' },

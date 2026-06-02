@@ -28,6 +28,10 @@ model Truck {
   truckNumber      String
   truckType        String
   truckTypeLabel   String
+  hullNumber       String?
+  equipmentId      String?
+  ownerName        String?
+  notes            String?
   registeredBy     String
   registeredByRole String
   registeredAt     DateTime   @default(now())
@@ -40,6 +44,7 @@ model Truck {
   checkouts        Checkout[]
 
   @@index([truckNumber])
+  @@index([hullNumber])
   @@index([status])
 }
 
@@ -73,12 +78,7 @@ model Checkout {
   @@index([contractor])
 }
 
-model ManualMigration {
-  name      String   @id
-  appliedAt DateTime @default(now())
 
-  @@map("_manual_migrations")
-}
 
 model AppSetting {
   key       String   @id
