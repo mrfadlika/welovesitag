@@ -10,7 +10,7 @@ import ExitVerificationPage from './pages/ExitVerification/ExitVerificationPage'
 import RiwayatPage from './pages/Riwayat/RiwayatPage';
 import RekapPage from './pages/Rekap/RekapPage';
 import KelolaPenggunaPage from './pages/KelolaPengguna/KelolaPenggunaPage';
-import RegistrasiMobilPage from './pages/RegistrasiMobil/RegistrasiMobilPage';
+import RegistrasiPage from './pages/Registrasi/RegistrasiPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user } = useAuth();
@@ -221,11 +221,11 @@ function AppRoutes() {
         )}
       />
       <Route
-        path="/admin/registrasi-mobil"
+        path="/admin/registrasi"
         element={(
           <ProtectedRoute allowedRoles={['admin']}>
             <DashboardLayout>
-              <RegistrasiMobilPage />
+              <RegistrasiPage />
             </DashboardLayout>
           </ProtectedRoute>
         )}

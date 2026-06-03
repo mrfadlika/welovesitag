@@ -32,6 +32,37 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+// ============ CONTRACTOR ENDPOINTS ============
+export const contractorAPI = {
+  getAll: async (status = null) => {
+    const query = status ? `?status=${status}` : '';
+    const response = await fetch(`${API_BASE_URL}/contractors${query}`);
+    return handleResponse(response);
+  },
+  create: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/contractors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  update: async (id, data) => {
+    const response = await fetch(`${API_BASE_URL}/contractors/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  remove: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/contractors/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+};
+
 // ============ AUTH ENDPOINTS ============
 export const authAPI = {
   login: async (username, password) => {
@@ -257,6 +288,68 @@ export const settingsAPI = {
   },
 };
 
+// ============ EQUIPMENT ENDPOINTS ============
+export const equipmentAPI = {
+  getAll: async (status = null) => {
+    const query = status ? `?status=${status}` : '';
+    const response = await fetch(`${API_BASE_URL}/equipments${query}`);
+    return handleResponse(response);
+  },
+  create: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/equipments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  update: async (id, data) => {
+    const response = await fetch(`${API_BASE_URL}/equipments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  remove: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/equipments/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+};
+
+// ============ LOCATION ENDPOINTS ============
+export const locationAPI = {
+  getAll: async (status = null) => {
+    const query = status ? `?status=${status}` : '';
+    const response = await fetch(`${API_BASE_URL}/locations${query}`);
+    return handleResponse(response);
+  },
+  create: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/locations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  update: async (id, data) => {
+    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+  remove: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+};
+
 // ============ RESPONSE HANDLER ============
 async function handleResponse(response) {
   try {
@@ -301,4 +394,7 @@ export default {
   checkoutAPI,
   userAPI,
   settingsAPI,
+  equipmentAPI,
+  locationAPI,
+  contractorAPI,
 };

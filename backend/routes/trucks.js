@@ -51,7 +51,7 @@ router.post('/', async (req, res, next) => {
     const {
       truckNumber,
       truckType,
-      hullNumber,
+      brand,
       equipmentId,
       ownerName,
       notes,
@@ -70,7 +70,6 @@ router.post('/', async (req, res, next) => {
     }
 
     const normalizedTruckNumber = truckNumber.toUpperCase();
-    const normalizedHullNumber = hullNumber ? String(hullNumber).trim() : null;
 
     const newTruck = await prisma.truck.create({
       data: {
@@ -78,7 +77,7 @@ router.post('/', async (req, res, next) => {
         truckNumber: normalizedTruckNumber,
         truckType,
         truckTypeLabel: truckType === 'dyna' ? 'Dyna' : truckType === 'fuso' ? 'Fuso' : truckType,
-        hullNumber: normalizedHullNumber,
+        brand: brand ? String(brand).trim() : null,
         equipmentId: equipmentId ? String(equipmentId).trim() : null,
         ownerName: ownerName ? String(ownerName).trim() : null,
         notes: notes ? String(notes).trim() : null,
@@ -138,7 +137,7 @@ router.put('/:id', async (req, res, next) => {
     const {
       truckNumber,
       truckType,
-      hullNumber,
+      brand,
       equipmentId,
       ownerName,
       notes,
@@ -163,7 +162,7 @@ router.put('/:id', async (req, res, next) => {
         truckTypeLabel: truckType
           ? (truckType === 'dyna' ? 'Dyna' : truckType === 'fuso' ? 'Fuso' : truckType)
           : truck.truckTypeLabel,
-        hullNumber: hullNumber !== undefined ? (hullNumber ? String(hullNumber).trim() : null) : truck.hullNumber,
+        brand: brand !== undefined ? (brand ? String(brand).trim() : null) : truck.brand,
         equipmentId: equipmentId !== undefined ? (equipmentId ? String(equipmentId).trim() : null) : truck.equipmentId,
         ownerName: ownerName !== undefined ? (ownerName ? String(ownerName).trim() : null) : truck.ownerName,
         notes: notes !== undefined ? (notes ? String(notes).trim() : null) : truck.notes,
@@ -194,17 +193,10 @@ router.delete('/:id', async (req, res, next) => {
       });
     }
 
-    // Check if truck has any checkouts
-    const checkoutCount = await prisma.checkout.count({
+    // Delete associated checkouts to avoid foreign key constraints
+    await prisma.checkout.deleteMany({
       where: { truckId: truck.id },
     });
-
-    if (checkoutCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Truck ini memiliki ${checkoutCount} data retase dan tidak bisa dihapus`,
-      });
-    }
 
     await prisma.truck.delete({
       where: { code: req.params.id },

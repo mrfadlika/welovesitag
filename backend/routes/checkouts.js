@@ -569,7 +569,7 @@ router.post('/', async (req, res, next) => {
     });
 
     // Save dynamic options for future dropdowns
-    Promise.allSettled([
+    await Promise.allSettled([
       addPitLocationOption(prisma, resolvedLocationOwner),
       addDynamicOption(prisma, MATERIAL_SETTING_KEY, resolvedMaterialType),
       addDynamicOption(prisma, HEAVY_EQUIPMENT_SETTING_KEY, resolvedHeavyEquipment),

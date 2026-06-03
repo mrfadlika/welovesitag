@@ -174,7 +174,7 @@ export default function ExitVerificationPage() {
 
       <div className="verify-note surface-card">
         <strong>Urutan aman verifikasi gate:</strong>
-        <span>Pilih baris tabel, cocokkan material dan lokasi, periksa alat gali serta kontraktor, lalu setuju/terima atau tunda.</span>
+        <span>Pilih baris tabel, cocokkan material dan lokasi, periksa Alat Gali (Excavator) serta kontraktor, lalu setuju/terima atau tunda.</span>
       </div>
 
       <div className="verify-toolbar">

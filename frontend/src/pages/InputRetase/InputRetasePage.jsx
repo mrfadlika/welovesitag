@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import usePersistentState from '../../hooks/usePersistentState';
-import { checkoutAPI, truckAPI, settingsAPI } from '../../services/api';
+import { checkoutAPI, truckAPI, settingsAPI, equipmentAPI, locationAPI, contractorAPI } from '../../services/api';
 import {
   CONTRACTOR_OPTIONS,
   HEAVY_EQUIPMENT_OPTIONS,
@@ -42,7 +42,7 @@ const EMPTY_FORM = {
   contractorCustom: '',
   truckNumber: '',
   checkerPit: '',
-  hullNumber: '',
+  equipmentId: '',
 };
 
 function FieldError({ message }) {
@@ -136,27 +136,42 @@ export default function InputRetasePage() {
 
   const fetchDynamicOptions = async () => {
     try {
-      const result = await settingsAPI.getDynamicOptions();
-      if (result.success && result.data) {
-        const { materials, equipments, contractors, locations } = result.data;
-        
-        const mergeOptions = (staticOpts, dynamicOpts) => {
-          if (!dynamicOpts || dynamicOpts.length === 0) return staticOpts;
-          const staticVals = new Set(staticOpts.map(o => o.value.toLowerCase()));
-          const customOpt = staticOpts.find(o => isCustomOption(o.value));
-          const baseOpts = staticOpts.filter(o => !isCustomOption(o.value));
-          
-          const newOpts = dynamicOpts.filter(o => !staticVals.has(o.value.toLowerCase()));
-          
-          return [...baseOpts, ...newOpts, customOpt].filter(Boolean);
-        };
+      const [settingsRes, equipmentsRes, locationsRes, contractorsRes] = await Promise.all([
+        settingsAPI.getDynamicOptions(),
+        equipmentAPI.getAll(),
+        locationAPI.getAll(),
+        contractorAPI.getAll()
+      ]);
 
-        setMaterialOptions(mergeOptions(MATERIAL_OPTIONS, materials));
-        setEquipmentOptions(mergeOptions(HEAVY_EQUIPMENT_OPTIONS, equipments));
-        setContractorOptions(mergeOptions(CONTRACTOR_OPTIONS, contractors));
-        setLocationOptions(mergeOptions(LOCATION_OPTIONS, locations));
+      const mergeOptions = (staticOpts, dynamicOpts) => {
+        if (!dynamicOpts || dynamicOpts.length === 0) return staticOpts;
+        const staticVals = new Set(staticOpts.map(o => o.value.toLowerCase()));
+        const customOpt = staticOpts.find(o => isCustomOption(o.value));
+        const baseOpts = staticOpts.filter(o => !isCustomOption(o.value));
+        const newOpts = dynamicOpts.filter(o => !staticVals.has(o.value.toLowerCase()));
+        return [...baseOpts, ...newOpts, customOpt].filter(Boolean);
+      };
+
+      if (settingsRes.success && settingsRes.data) {
+        setMaterialOptions(mergeOptions(MATERIAL_OPTIONS, settingsRes.data.materials));
+        setContractorOptions(mergeOptions(CONTRACTOR_OPTIONS, settingsRes.data.contractors));
       }
-    } catch {
+
+      if (equipmentsRes.success && equipmentsRes.data) {
+        const eqOpts = equipmentsRes.data.map(eq => ({ value: eq.equipmentId, label: `${eq.equipmentId} - ${eq.brand || 'Tanpa Merek'}` }));
+        setEquipmentOptions(mergeOptions(HEAVY_EQUIPMENT_OPTIONS, eqOpts));
+      }
+
+      if (locationsRes.success && locationsRes.data) {
+        const locOpts = locationsRes.data.map(loc => ({ value: loc.name, label: loc.name }));
+        setLocationOptions(mergeOptions(LOCATION_OPTIONS, locOpts));
+      }
+
+      if (contractorsRes.success && contractorsRes.data) {
+        const ctrOpts = contractorsRes.data.map(ctr => ({ value: ctr.name, label: ctr.name }));
+        setContractorOptions(prev => mergeOptions(prev, ctrOpts));
+      }
+    } catch (error) {
       // silently fail, fallback to default
     }
   };
@@ -188,13 +203,13 @@ export default function InputRetasePage() {
     fetchTrucks();
   }, []);
 
-  // Hull number options for checker
-  const hullNumberOptions = useMemo(() => {
+  // Id Alat options for checker
+  const equipmentIdOptions = useMemo(() => {
     return registeredTrucks
-      .filter((t) => t.hullNumber)
+      .filter((t) => t.equipmentId)
       .map((t) => ({
-        value: t.hullNumber,
-        label: `${t.hullNumber} — ${t.truckNumber} (${t.truckTypeLabel || t.truckType})`,
+        value: t.equipmentId,
+        label: `${t.equipmentId} — ${t.truckNumber} (${t.truckTypeLabel || t.truckType})`,
         truck: t,
       }));
   }, [registeredTrucks]);
@@ -222,13 +237,13 @@ export default function InputRetasePage() {
     setErrors((previous) => ({ ...previous, [field]: '' }));
   };
 
-  const handleHullNumberChange = (hullNumber) => {
-    setField('hullNumber', hullNumber);
-    const matchedTruck = registeredTrucks.find((t) => t.hullNumber === hullNumber);
+  const handleEquipmentIdChange = (equipmentId) => {
+    setField('equipmentId', equipmentId);
+    const matchedTruck = registeredTrucks.find((t) => t.equipmentId === equipmentId);
     if (matchedTruck) {
       setFormData((prev) => ({
         ...prev,
-        hullNumber,
+        equipmentId,
         truckNumber: matchedTruck.truckNumber || '',
         truckType: matchedTruck.truckType || '',
         truckTypeCustom: '',
@@ -265,9 +280,9 @@ export default function InputRetasePage() {
 
     if (!formData.materialType) nextErrors.materialType = 'Pilih jenis material';
     if (!formData.locationOwner) nextErrors.locationOwner = 'Pilih lokasi';
-    if (!formData.heavyEquipment) nextErrors.heavyEquipment = 'Pilih alat gali';
+    if (!formData.heavyEquipment) nextErrors.heavyEquipment = 'Pilih Alat Gali (Excavator)';
     if (!formData.contractor) nextErrors.contractor = 'Pilih kontraktor';
-    if (!formData.hullNumber) nextErrors.hullNumber = 'Pilih nomor lambung';
+    if (!formData.equipmentId) nextErrors.equipmentId = 'Pilih Id Alat';
     if (!resolvedSubmission.checkerPit) nextErrors.checkerPit = 'Checker pit wajib diisi';
 
     if (isCustomOption(formData.materialType) && !formData.materialCustom.trim()) {
@@ -277,7 +292,7 @@ export default function InputRetasePage() {
       nextErrors.locationCustom = 'Isi lokasi lainnya';
     }
     if (isCustomOption(formData.heavyEquipment) && !formData.heavyEquipmentCustom.trim()) {
-      nextErrors.heavyEquipmentCustom = 'Isi alat gali lainnya';
+      nextErrors.heavyEquipmentCustom = 'Isi Alat Gali (Excavator) lainnya';
     }
     if (isCustomOption(formData.contractor) && !formData.contractorCustom.trim()) {
       nextErrors.contractorCustom = 'Isi kontraktor lainnya';
@@ -323,7 +338,7 @@ export default function InputRetasePage() {
       setErrors({});
       setFormData(prev => ({
         ...prev,
-        hullNumber: '',
+        equipmentId: '',
         truckNumber: '',
         locationOwner: '',
         locationCustom: '',
@@ -357,7 +372,7 @@ export default function InputRetasePage() {
             getOptionLabel(locationOptions, formData.locationOwner),
         },
         {
-          label: 'Alat Gali',
+          label: 'Alat Gali (Excavator)',
           value:
             resolvedSubmission.heavyEquipment ||
             getOptionLabel(equipmentOptions, formData.heavyEquipment),
@@ -365,8 +380,8 @@ export default function InputRetasePage() {
     ];
 
     items.push({
-      label: 'No. Lambung',
-      value: formData.hullNumber || '-',
+      label: 'Id Alat',
+      value: formData.equipmentId || '-',
     });
 
     if (formData.contractor) {
@@ -389,7 +404,7 @@ export default function InputRetasePage() {
 
   const now = new Date();
 
-  const equipmentLabel = 'Alat Gali';
+  const equipmentLabel = 'Alat Gali (Excavator)';
 
   return (
     <div className="input-retase-page" id="input-retase-page">
@@ -409,7 +424,7 @@ export default function InputRetasePage() {
           <span className="section-kicker">Workbook Sync</span>
           <h2>Form Input Data Retase</h2>
           <p>
-            Pilih nomor lambung untuk sinkron data dari registrasi mobil. Isi material, lokasi, alat gali, dan kontraktor.
+            Pilih Id Alat untuk sinkron data dari registrasi Dump Truck. Isi material, lokasi, Alat Gali (Excavator), dan kontraktor.
           </p>
           <span className="draft-state recovered">
             Draft input tersimpan otomatis selama sesi browser. Foto perlu dipilih ulang.
@@ -448,15 +463,15 @@ export default function InputRetasePage() {
               </div>
             </div>
             <div className="form-grid">
-              {/* --- Nomor Lambung (synced with registration) --- */}
+              {/* --- Id Alat (synced with registration) --- */}
               <SelectGroup
-                id="hullNumber"
-                label="Nomor Lambung"
+                id="equipmentId"
+                label="Id Alat"
                 icon={<Hash size={18} className="field-icon" />}
-                value={formData.hullNumber}
-                onChange={(event) => handleHullNumberChange(event.target.value)}
-                options={hullNumberOptions}
-                error={errors.hullNumber}
+                value={formData.equipmentId}
+                onChange={(event) => handleEquipmentIdChange(event.target.value)}
+                options={equipmentIdOptions}
+                error={errors.equipmentId}
               />
 
               <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={materialOptions} error={errors.materialType} />
@@ -469,7 +484,7 @@ export default function InputRetasePage() {
               {isCustomOption(formData.contractor) && <InputGroup id="contractorCustom" label="Kontraktor Lainnya" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractorCustom} onChange={(event) => setField('contractorCustom', event.target.value)} placeholder="Tulis kontraktor lain" error={errors.contractorCustom} />}
 
               {/* --- Show synced values --- */}
-              {formData.hullNumber && (
+              {formData.equipmentId && (
                 <div className="readonly-strip" style={{ gridColumn: '1 / -1' }}>
                   <div className="readonly-tile"><span className="readonly-label">No Polisi</span><strong>{formData.truckNumber || '-'}</strong></div>
                   <div className="readonly-tile"><span className="readonly-label">Tipe Truk</span><strong>{formData.truckType === 'dyna' ? 'Dyna' : formData.truckType === 'fuso' ? 'Fuso' : formData.truckType || '-'}</strong></div>
@@ -480,9 +495,9 @@ export default function InputRetasePage() {
                 <label htmlFor="checkerPit">Checker Pit <span className="required">*</span></label>
                 <div className="field-input-wrap">
                   <UserIcon size={18} className="field-icon" />
-                  <input id="checkerPit" className="field-input" value={formData.checkerPit} onChange={(event) => setField('checkerPit', event.target.value)} readOnly={!isAdmin} />
+                  <input id="checkerPit" className="field-input" value={formData.checkerPit} readOnly disabled />
                 </div>
-                <span className="inline-note">{isAdmin ? 'Admin dapat menyesuaikan nama checker pit saat input pengganti.' : 'Terisi dari akun login checker.'}</span>
+                <span className="inline-note">Terisi otomatis dari akun yang sedang login.</span>
                 <FieldError message={errors.checkerPit} />
               </div>
             </div>

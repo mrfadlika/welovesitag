@@ -12,6 +12,9 @@ const truckRoutes = require('./routes/trucks');
 const checkoutRoutes = require('./routes/checkouts');
 const userRoutes = require('./routes/users');
 const settingsRoutes = require('./routes/settings');
+const equipmentRoutes = require('./routes/equipments');
+const locationRoutes = require('./routes/locations');
+const contractorRoutes = require('./routes/contractors');
 const { startRekapAutoExportScheduler } = require('./utils/rekap-auto-export');
 const { bootstrapDefaultUsers } = require('./utils/bootstrap-default-users');
 
@@ -47,6 +50,9 @@ app.use('/api/trucks', truckRoutes);
 app.use('/api/checkouts', checkoutRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/equipments', equipmentRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/contractors', contractorRoutes);
 
 if (hasFrontendBuild) {
   app.use(express.static(frontendDistPath));

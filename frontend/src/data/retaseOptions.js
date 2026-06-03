@@ -5,22 +5,14 @@ export const MATERIAL_OPTIONS = [
 ];
 
 export const LOCATION_OPTIONS = [
-  { value: 'Pit Geostone Family', label: 'Pit Geostone Family' },
-  { value: 'Pit Anugrah', label: 'Pit Anugrah' },
-  { value: 'Pit H Naja', label: 'Pit H Naja' },
-  { value: 'Pit Propam', label: 'Pit Propam' },
   { value: '__custom__', label: 'Pit Lainnya' },
 ];
 
 export const HEAVY_EQUIPMENT_OPTIONS = [
-  { value: 'Hitachi-01', label: 'Hitachi-01' },
-  { value: 'Hitachi-02', label: 'Hitachi-02' },
-  { value: 'Komatsu-01', label: 'Komatsu-01' },
-  { value: 'Komatsu-02', label: 'Komatsu-02' },
   { value: '__custom__', label: 'Lainnya' },
 ];
 
-// Alias: label changed from "Alat Berat" to "Alat Gali" for checker role
+// Alias: label changed from "Alat Berat" to "Alat Gali (Excavator)" for checker role
 export const DIGGING_EQUIPMENT_OPTIONS = HEAVY_EQUIPMENT_OPTIONS;
 
 export const TRUCK_TYPE_OPTIONS = [
@@ -30,9 +22,6 @@ export const TRUCK_TYPE_OPTIONS = [
 ];
 
 export const CONTRACTOR_OPTIONS = [
-  { value: 'H Beddu', label: 'H Beddu' },
-  { value: 'Sapri', label: 'Sapri' },
-  { value: 'H Abbas', label: 'H Abbas' },
   { value: '__custom__', label: 'Lainnya' },
 ];
 

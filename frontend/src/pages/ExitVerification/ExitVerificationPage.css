@@ -6,6 +6,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.exit-verification-page > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* ========== HERO ========== */
@@ -107,6 +116,9 @@
 /* ========== TOOLBAR ========== */
 .verify-toolbar {
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* ========== SEARCH BAR ========== */

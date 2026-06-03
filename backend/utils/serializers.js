@@ -16,7 +16,7 @@ function serializeTruck(truck) {
     truckNumber: truck.truckNumber,
     truckType: truck.truckType,
     truckTypeLabel: truck.truckTypeLabel,
-    hullNumber: truck.hullNumber || null,
+    brand: truck.brand || null,
     equipmentId: truck.equipmentId || null,
     ownerName: truck.ownerName || null,
     notes: truck.notes || null,

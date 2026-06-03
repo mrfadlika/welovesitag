@@ -98,6 +98,9 @@
 
 /* ========== TOOLBAR ========== */
 .manage-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   display: flex;
   gap: var(--space-md);
 }
@@ -532,6 +535,9 @@
 
 @media (max-width: 768px) {
   .manage-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     flex-direction: column;
   }
   

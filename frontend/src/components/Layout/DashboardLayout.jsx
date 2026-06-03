@@ -16,6 +16,7 @@ import {
   HardHat,
   Users,
   Bell,
+  Database,
 } from 'lucide-react';
 import './DashboardLayout.css';
 import logo from '../../assets/logo.png';
@@ -137,7 +138,7 @@ export default function DashboardLayout({ children }) {
       return [
         { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
         { to: '/admin/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
-        { to: '/admin/registrasi-mobil', icon: <Truck size={20} />, label: 'Registrasi Mobil' },
+        { to: '/admin/registrasi', icon: <Database size={20} />, label: 'Registrasi Data' },
         {
           to: '/admin/verifikasi',
           icon: <CheckCircle2 size={20} />,
@@ -171,8 +172,8 @@ export default function DashboardLayout({ children }) {
   const getPageTitle = () => {
     const path = location.pathname;
 
-    if (path.includes('/registrasi-mobil')) {
-      return 'Registrasi Mobil';
+    if (path.includes('/registrasi')) {
+      return 'Registrasi Data';
     }
 
     if (path.includes('/pengguna')) {
@@ -201,8 +202,7 @@ export default function DashboardLayout({ children }) {
   const getPageDescription = () => {
     const path = location.pathname;
 
-    if (path.includes('/registrasi-mobil')) {
-      return 'Daftarkan dump truck baru: nomor lambung, id alat, no polisi, tipe, dan pemilik alat.';
+    if (path.includes('/registrasi')) {
     }
 
     if (path.includes('/pengguna')) {
@@ -210,22 +210,17 @@ export default function DashboardLayout({ children }) {
     }
 
     if (path.includes('/input')) {
-      return 'Form utama diselaraskan dengan workbook Excel agar log dan rekap memakai struktur yang sama.';
     }
 
     if (path.includes('/verifikasi')) {
-      return 'Periksa data workbook lalu isi checker gate dengan menyetujui atau menolak antrean.';
     }
 
     if (path.includes('/riwayat')) {
-      return 'Lihat log real-time dengan kolom yang mengikuti sheet Excel.';
     }
 
     if (path.includes('/rekap')) {
-      return 'Pantau rekap harian Fuso, Dyna, harga, dan cumulative harga dari data verified.';
-    }
 
-    return 'Pantau ringkasan aktivitas retase harian dari satu tampilan yang mudah dibaca.';
+    }
   };
 
   const homePath =

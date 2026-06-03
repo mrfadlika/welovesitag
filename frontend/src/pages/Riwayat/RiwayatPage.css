@@ -98,6 +98,9 @@
 
 /* ========== TOOLBAR ========== */
 .riwayat-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   display: flex;
   gap: var(--space-md);
   align-items: stretch;
@@ -105,6 +108,9 @@
 }
 
 .riwayat-toolbar-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   display: flex;
   gap: var(--space-md);
   flex-wrap: wrap;
@@ -756,10 +762,16 @@
 
 @media (max-width: 768px) {
   .riwayat-page .riwayat-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     flex-direction: column;
   }
 
   .riwayat-page .riwayat-toolbar-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: 1fr;
   }

@@ -28,6 +28,7 @@ model Truck {
   truckNumber      String
   truckType        String
   truckTypeLabel   String
+  brand            String?
   hullNumber       String?
   equipmentId      String?
   ownerName        String?
@@ -79,6 +80,61 @@ model Checkout {
 }
 
 
+
+model HeavyEquipment {
+  id               Int        @id @default(autoincrement())
+  code             String     @unique
+  equipmentId      String     @unique
+  brand            String?
+  type             String?
+  ownerName        String?
+  notes            String?
+  registeredBy     String
+  registeredByRole String
+  registeredAt     DateTime   @default(now())
+  status           String     @default("active")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([equipmentId])
+  @@index([status])
+}
+
+model LocationData {
+  id               Int        @id @default(autoincrement())
+  code             String     @unique
+  name             String
+  ownerName        String?
+  notes            String?
+  registeredBy     String
+  registeredByRole String
+  registeredAt     DateTime   @default(now())
+  status           String     @default("active")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+model ContractorData {
+  id               Int        @id @default(autoincrement())
+  code             String     @unique
+  name             String
+  contactPerson    String?
+  contactNumber    String?
+  address          String?
+  notes            String?
+  registeredBy     String
+  registeredByRole String
+  registeredAt     DateTime   @default(now())
+  status           String     @default("active")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
 
 model AppSetting {
   key       String   @id

@@ -260,6 +260,8 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -270,6 +272,16 @@ body {
   background-color: var(--color-bg-page);
   background-image: var(--gradient-page);
   line-height: 1.6;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Background mesh */
