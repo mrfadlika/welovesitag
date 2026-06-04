@@ -137,8 +137,8 @@ export default function DashboardLayout({ children }) {
     if (user?.role === 'admin') {
       return [
         { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard', end: true },
-        { to: '/admin/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
         { to: '/admin/registrasi', icon: <Database size={20} />, label: 'Registrasi Data' },
+        { to: '/admin/input', icon: <ClipboardPlus size={20} />, label: 'Input Retase' },
         {
           to: '/admin/verifikasi',
           icon: <CheckCircle2 size={20} />,
