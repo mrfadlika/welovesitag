@@ -51,6 +51,12 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
+
+    const intervalId = setInterval(() => {
+      fetchDashboardData();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const stats = useMemo(() => {

@@ -31,27 +31,33 @@ export default function ExitVerificationPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchPendingRecords = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchPendingRecords = async (isBackground = false) => {
+      if (!isBackground) setIsLoading(true);
+      if (!isBackground) setError(null);
 
       try {
         const result = await checkoutAPI.getAll('ready_for_exit');
 
         if (!result.success) {
-          setError(result.message || 'Gagal memuat antrean verifikasi');
+          if (!isBackground) setError(result.message || 'Gagal memuat antrean verifikasi');
           return;
         }
 
         setRecords(buildRetaseHistory(result.data || []));
       } catch (fetchError) {
-        setError(`Gagal memuat data: ${fetchError.message}`);
+        if (!isBackground) setError(`Gagal memuat data: ${fetchError.message}`);
       } finally {
-        setIsLoading(false);
+        if (!isBackground) setIsLoading(false);
       }
     };
 
     fetchPendingRecords();
+
+    const intervalId = setInterval(() => {
+      fetchPendingRecords(true);
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const filteredData = useMemo(() => {

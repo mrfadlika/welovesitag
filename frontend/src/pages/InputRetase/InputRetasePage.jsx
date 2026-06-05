@@ -43,6 +43,7 @@ const EMPTY_FORM = {
   truckNumber: '',
   checkerPit: '',
   equipmentId: '',
+  equipmentIdCustom: '',
 };
 
 function FieldError({ message }) {
@@ -205,13 +206,15 @@ export default function InputRetasePage() {
 
   // Id Alat options for checker
   const equipmentIdOptions = useMemo(() => {
-    return registeredTrucks
+    const opts = registeredTrucks
       .filter((t) => t.equipmentId)
       .map((t) => ({
         value: t.equipmentId,
         label: `${t.equipmentId} — ${t.truckNumber} (${t.truckTypeLabel || t.truckType})`,
         truck: t,
       }));
+    opts.push({ value: '__custom__', label: 'Lainnya...' });
+    return opts;
   }, [registeredTrucks]);
 
   const resolvedSubmission = useMemo(
@@ -239,6 +242,17 @@ export default function InputRetasePage() {
 
   const handleEquipmentIdChange = (equipmentId) => {
     setField('equipmentId', equipmentId);
+    if (equipmentId === '__custom__') {
+      setFormData((prev) => ({
+        ...prev,
+        equipmentId,
+        equipmentIdCustom: '',
+        truckNumber: '',
+        truckType: '',
+        truckTypeCustom: '',
+      }));
+      return;
+    }
     const matchedTruck = registeredTrucks.find((t) => t.equipmentId === equipmentId);
     if (matchedTruck) {
       setFormData((prev) => ({
@@ -283,6 +297,15 @@ export default function InputRetasePage() {
     if (!formData.heavyEquipment) nextErrors.heavyEquipment = 'Pilih Alat Gali (Excavator)';
     if (!formData.contractor) nextErrors.contractor = 'Pilih kontraktor';
     if (!formData.equipmentId) nextErrors.equipmentId = 'Pilih Id Alat';
+    else if (formData.equipmentId === '__custom__') {
+      if (!formData.equipmentIdCustom?.trim()) nextErrors.equipmentIdCustom = 'Id Alat Lainnya wajib diisi';
+      if (!formData.truckNumber?.trim()) nextErrors.truckNumber = 'No. Polisi wajib diisi';
+      if (!formData.truckType) nextErrors.truckType = 'Pilih tipe truk';
+      if (isCustomOption(formData.truckType) && !formData.truckTypeCustom?.trim()) {
+        nextErrors.truckTypeCustom = 'Tipe truk lainnya wajib diisi';
+      }
+    }
+
     if (!resolvedSubmission.checkerPit) nextErrors.checkerPit = 'Checker pit wajib diisi';
 
     if (isCustomOption(formData.materialType) && !formData.materialCustom.trim()) {
@@ -310,6 +333,21 @@ export default function InputRetasePage() {
     setSubmitResult(null);
 
     try {
+      if (formData.equipmentId === '__custom__') {
+        const newTruckRes = await truckAPI.create({
+          equipmentId: formData.equipmentIdCustom.trim(),
+          truckNumber: formData.truckNumber.trim().toUpperCase(),
+          truckType: formData.truckType === 'lainnya' ? formData.truckTypeCustom.trim() : formData.truckType,
+          registeredBy: user?.name || 'Admin',
+          registeredByRole: isAdmin ? 'Admin' : 'Checker',
+        });
+        if (!newTruckRes.success) {
+          setSubmitResult({ success: false, message: `Gagal menyimpan Id Alat baru: ${newTruckRes.message}` });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const result = await checkoutAPI.create({
         truckNumber: formData.truckNumber.trim(),
         truckType: formData.truckType,
@@ -339,10 +377,16 @@ export default function InputRetasePage() {
       setFormData(prev => ({
         ...prev,
         equipmentId: '',
+        equipmentIdCustom: '',
         truckNumber: '',
+        truckType: '',
+        truckTypeCustom: '',
         locationOwner: '',
         locationCustom: '',
       }));
+      // Refresh the registered trucks to get the newly added equipmentId if any
+      const truckResult = await truckAPI.getAll();
+      if (truckResult.success) setRegisteredTrucks(truckResult.data || []);
       fetchDynamicOptions();
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -381,7 +425,7 @@ export default function InputRetasePage() {
 
     items.push({
       label: 'Id Alat',
-      value: formData.equipmentId || '-',
+      value: formData.equipmentId === '__custom__' ? formData.equipmentIdCustom : (formData.equipmentId || '-'),
     });
 
     if (formData.contractor) {
@@ -474,6 +518,55 @@ export default function InputRetasePage() {
                 error={errors.equipmentId}
               />
 
+              {/* --- Show synced values --- */}
+              {formData.equipmentId === '__custom__' ? (
+                <>
+                  <InputGroup
+                    id="equipmentIdCustom"
+                    label="Id Alat Lainnya"
+                    icon={<Hash size={18} className="field-icon" />}
+                    value={formData.equipmentIdCustom || ''}
+                    onChange={(event) => setField('equipmentIdCustom', event.target.value)}
+                    placeholder="Contoh: DT-999"
+                    error={errors.equipmentIdCustom}
+                  />
+                  <InputGroup
+                    id="truckNumber"
+                    label="No. Polisi (Otomatis Kapital)"
+                    icon={<Hash size={18} className="field-icon" />}
+                    value={formData.truckNumber || ''}
+                    onChange={(event) => setField('truckNumber', event.target.value.toUpperCase())}
+                    placeholder="Contoh: DD 1234 AB"
+                    error={errors.truckNumber}
+                  />
+                  <SelectGroup
+                    id="truckType"
+                    label="Tipe Truk"
+                    icon={<Truck size={18} className="field-icon" />}
+                    value={formData.truckType || ''}
+                    onChange={(event) => setField('truckType', event.target.value)}
+                    options={TRUCK_TYPE_OPTIONS}
+                    error={errors.truckType}
+                  />
+                  {isCustomOption(formData.truckType) && (
+                    <InputGroup
+                      id="truckTypeCustom"
+                      label="Tipe Truk Lainnya"
+                      icon={<Truck size={18} className="field-icon" />}
+                      value={formData.truckTypeCustom || ''}
+                      onChange={(event) => setField('truckTypeCustom', event.target.value)}
+                      placeholder="Tulis tipe truk lain"
+                      error={errors.truckTypeCustom}
+                    />
+                  )}
+                </>
+              ) : formData.equipmentId ? (
+                <div className="readonly-strip" style={{ gridColumn: '1 / -1' }}>
+                  <div className="readonly-tile"><span className="readonly-label">No Polisi</span><strong>{formData.truckNumber || '-'}</strong></div>
+                  <div className="readonly-tile"><span className="readonly-label">Tipe Truk</span><strong>{formData.truckType === 'dyna' ? 'Dyna' : formData.truckType === 'fuso' ? 'Fuso' : formData.truckType || '-'}</strong></div>
+                </div>
+              ) : null}
+
               <SelectGroup id="materialType" label="Jenis Material" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialType} onChange={(event) => setField('materialType', event.target.value)} options={materialOptions} error={errors.materialType} />
               <SelectGroup id="locationOwner" label="Lokasi" icon={<MapPin size={18} className="field-icon" />} value={formData.locationOwner} onChange={(event) => setField('locationOwner', event.target.value)} options={locationOptions} error={errors.locationOwner} />
               {isCustomOption(formData.materialType) && <InputGroup id="materialCustom" label="Jenis Material Lainnya" icon={<ClipboardList size={18} className="field-icon" />} value={formData.materialCustom} onChange={(event) => setField('materialCustom', event.target.value)} placeholder="Tulis material lain" error={errors.materialCustom} />}
@@ -482,14 +575,6 @@ export default function InputRetasePage() {
               <SelectGroup id="contractor" label="Kontraktor" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractor} onChange={(event) => setField('contractor', event.target.value)} options={contractorOptions} error={errors.contractor} />
               {isCustomOption(formData.heavyEquipment) && <InputGroup id="heavyEquipmentCustom" label={`${equipmentLabel} Lainnya`} icon={<Pickaxe size={18} className="field-icon" />} value={formData.heavyEquipmentCustom} onChange={(event) => setField('heavyEquipmentCustom', event.target.value)} placeholder={`Tulis ${equipmentLabel.toLowerCase()} lain`} error={errors.heavyEquipmentCustom} />}
               {isCustomOption(formData.contractor) && <InputGroup id="contractorCustom" label="Kontraktor Lainnya" icon={<UserIcon size={18} className="field-icon" />} value={formData.contractorCustom} onChange={(event) => setField('contractorCustom', event.target.value)} placeholder="Tulis kontraktor lain" error={errors.contractorCustom} />}
-
-              {/* --- Show synced values --- */}
-              {formData.equipmentId && (
-                <div className="readonly-strip" style={{ gridColumn: '1 / -1' }}>
-                  <div className="readonly-tile"><span className="readonly-label">No Polisi</span><strong>{formData.truckNumber || '-'}</strong></div>
-                  <div className="readonly-tile"><span className="readonly-label">Tipe Truk</span><strong>{formData.truckType === 'dyna' ? 'Dyna' : formData.truckType === 'fuso' ? 'Fuso' : formData.truckType || '-'}</strong></div>
-                </div>
-              )}
 
               <div className={`field-group full-width ${errors.checkerPit ? 'error' : ''}`}>
                 <label htmlFor="checkerPit">Checker Pit <span className="required">*</span></label>

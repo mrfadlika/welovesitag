@@ -75,27 +75,33 @@ export default function RiwayatPage() {
   const [refreshSeed, setRefreshSeed] = useState(0);
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchHistory = async (isBackground = false) => {
+      if (!isBackground) setIsLoading(true);
+      if (!isBackground) setError(null);
 
       try {
         const result = await checkoutAPI.getAll();
 
         if (!result.success) {
-          setError(result.message || 'Gagal memuat data log retase');
+          if (!isBackground) setError(result.message || 'Gagal memuat data log retase');
           return;
         }
 
         setRecords(buildRetaseHistory(result.data || []));
       } catch (fetchError) {
-        setError(`Gagal memuat data: ${fetchError.message}`);
+        if (!isBackground) setError(`Gagal memuat data: ${fetchError.message}`);
       } finally {
-        setIsLoading(false);
+        if (!isBackground) setIsLoading(false);
       }
     };
 
     fetchHistory();
+
+    const intervalId = setInterval(() => {
+      fetchHistory(true);
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, [refreshSeed]);
 
   const filteredData = useMemo(() => {
